@@ -12,7 +12,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { setAdminClaim } from "@/app/actions/set-admin-claim";
 import { useToast } from "@/hooks/use-toast";
 import { getIdTokenResult } from "firebase/auth";
 
@@ -96,6 +95,7 @@ export default function AdminPage() {
         throw new Error(result.error || "An unknown error occurred.");
       }
     } catch (error: any) {
+      console.error("Error in handleMakeAdmin:", error);
       toast({
         variant: "destructive",
         title: "Failed to make admin",

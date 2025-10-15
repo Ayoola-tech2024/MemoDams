@@ -2,7 +2,7 @@
 'use server';
 
 import { getAuth } from 'firebase-admin/auth';
-import { initializeApp, getApps, App } from 'firebase-admin/app';
+import { initializeApp, getApps, App, applicationDefault } from 'firebase-admin/app';
 import { headers } from 'next/headers';
 import { firebaseConfig } from '@/firebase/config';
 
@@ -12,13 +12,14 @@ function initializeAdminApp(): App {
   if (apps.length > 0) {
     return apps[0]!;
   }
-  // This is a simplified initialization. In a real production environment,
-  // you would use service account credentials, ideally from environment variables.
+  
+  const credential = process.env.GOOGLE_APPLICATION_CREDENTIALS 
+    ? applicationDefault()
+    : undefined;
+
   return initializeApp({
     projectId: firebaseConfig.projectId,
-    // For local development with emulators, you might not need credentials.
-    // For production, you MUST provide credentials.
-    // credential: applicationDefault(), // Example for production
+    credential,
   });
 }
 
@@ -43,7 +44,8 @@ export async function setAdminClaim(data: { userId: string }): Promise<{ success
     const decodedToken = await adminAuth.verifyIdToken(idToken);
     
     // SECURITY CHECK: Only allow users who are already admins (by claim or email) to perform this action.
-    if (decodedToken.admin !== true && decodedToken.email !== 'damisileayoola@gmail.com') {
+    const isAuthorized = decodedToken.admin === true || decodedToken.email === 'damisileayoola@gmail.com';
+    if (!isAuthorized) {
       throw new Error('Forbidden: You do not have permission to perform this action.');
     }
 

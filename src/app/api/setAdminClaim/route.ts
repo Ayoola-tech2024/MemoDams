@@ -1,7 +1,7 @@
 
 import { NextResponse } from 'next/server';
 import { getAuth } from 'firebase-admin/auth';
-import { initializeApp, getApps, App } from 'firebase-admin/app';
+import { initializeApp, getApps, App, applicationDefault } from 'firebase-admin/app';
 import { headers } from 'next/headers';
 import { firebaseConfig } from '@/firebase/config';
 
@@ -11,7 +11,16 @@ function initializeAdminApp(): App {
   if (apps.length > 0) {
     return apps[0]!;
   }
-  return initializeApp({ projectId: firebaseConfig.projectId });
+  
+  // Use a more robust initialization strategy that works in different environments
+  const credential = process.env.GOOGLE_APPLICATION_CREDENTIALS 
+    ? applicationDefault()
+    : undefined;
+
+  return initializeApp({
+    projectId: firebaseConfig.projectId,
+    credential,
+  });
 }
 
 export async function POST(request: Request) {
@@ -35,7 +44,8 @@ export async function POST(request: Request) {
     const decodedToken = await adminAuth.verifyIdToken(idToken);
     
     // SECURITY CHECK: Only allow users who are already admins (by claim or email) to perform this action.
-    if (decodedToken.admin !== true && decodedToken.email !== 'damisileayoola@gmail.com') {
+    const isAuthorized = decodedToken.admin === true || decodedToken.email === 'damisileayoola@gmail.com';
+    if (!isAuthorized) {
       return NextResponse.json({ success: false, error: 'Forbidden: You do not have permission to perform this action.' }, { status: 403 });
     }
 
