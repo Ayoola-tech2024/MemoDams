@@ -37,7 +37,7 @@ import { Logo } from '@/components/logo';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { useAuth, useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { signOut } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 
@@ -74,11 +74,18 @@ export default function DashboardLayout({
   const auth = useAuth();
   const router = useRouter();
   const { toast } = useToast();
-  const isAdmin = user?.email === 'damisileayoola@gmail.com';
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     if (!isUserLoading && !user) {
       router.push('/login');
+    }
+    if (user) {
+        user.getIdTokenResult().then(idTokenResult => {
+            if (idTokenResult.claims.admin) {
+                setIsAdmin(true);
+            }
+        });
     }
   }, [user, isUserLoading, router]);
 

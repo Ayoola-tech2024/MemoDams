@@ -181,7 +181,8 @@
     ],
     "customClaims": {
       "admin": {
-        "type": "boolean"
+        "type": "boolean",
+        "description": "Indicates whether the user has administrative privileges."
       }
     }
   },
@@ -194,7 +195,7 @@
           "schema": {
             "$ref": "#/backend/entities/User"
           },
-          "description": "Stores user profile information.  The 'userId' parameter corresponds to the Firebase Auth UID.",
+          "description": "Stores user profile information. The 'userId' parameter corresponds to the Firebase Auth UID.",
           "params": [
             {
               "name": "userId",

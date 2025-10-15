@@ -4,7 +4,7 @@
 import { useCollection, useFirestore, useUser, useMemoFirebase } from "@/firebase";
 import { collection, query, orderBy } from "firebase/firestore";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -60,21 +60,42 @@ export default function AdminPage() {
   const { user: currentUser, isUserLoading } = useUser();
   const firestore = useFirestore();
   const router = useRouter();
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isCheckingAdmin, setIsCheckingAdmin] = useState(true);
 
   useEffect(() => {
-    if (!isUserLoading && currentUser?.email !== "damisileayoola@gmail.com") {
-      router.replace("/dashboard");
+    if (isUserLoading) return;
+    if (!currentUser) {
+        router.replace("/dashboard");
+        return;
     }
+    
+    setIsCheckingAdmin(true);
+    currentUser.getIdTokenResult(true) // Force refresh the token
+        .then(idTokenResult => {
+            const claims = idTokenResult.claims;
+            if (claims.admin) {
+                setIsAdmin(true);
+            } else {
+                router.replace("/dashboard");
+            }
+            setIsCheckingAdmin(false);
+        })
+        .catch(() => {
+             router.replace("/dashboard");
+             setIsCheckingAdmin(false);
+        });
+
   }, [currentUser, isUserLoading, router]);
 
   const usersQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !isAdmin) return null;
     return query(collection(firestore, "users"), orderBy("createdAt", "desc"));
-  }, [firestore]);
+  }, [firestore, isAdmin]);
 
   const { data: users, isLoading } = useCollection<AppUser>(usersQuery);
 
-  if (isUserLoading || currentUser?.email !== "damisileayoola@gmail.com") {
+  if (isUserLoading || isCheckingAdmin || !isAdmin) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center bg-background">
         <p>Loading or unauthorized...</p>
@@ -107,9 +128,9 @@ export default function AdminPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading && Array.from({ length: 5 }).map((_, i) => <UserRowSkeleton key={i} />)}
+              {(isLoading || isCheckingAdmin) && Array.from({ length: 5 }).map((_, i) => <UserRowSkeleton key={i} />)}
 
-              {!isLoading && users?.map((user) => (
+              {!isLoading && !isCheckingAdmin && users?.map((user) => (
                 <TableRow key={user.id}>
                   <TableCell>
                     <div className="flex items-center gap-4">
