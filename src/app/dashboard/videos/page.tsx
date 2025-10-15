@@ -38,6 +38,8 @@ function VideoSkeleton() {
   );
 }
 
+const videoMimeTypes = ["video/mp4", "video/webm", "video/ogg"];
+
 export default function VideosPage() {
     const { user } = useUser();
     const firestore = useFirestore();
@@ -46,7 +48,7 @@ export default function VideosPage() {
         if (!user || !firestore) return null;
         return query(
             collection(firestore, 'users', user.uid, 'files'),
-            where("fileType", "in", ["video/mp4", "video/webm", "video/ogg"]),
+            where("fileType", "in", videoMimeTypes),
             orderBy("uploadDate", "desc")
         );
     }, [user, firestore]);
@@ -58,7 +60,7 @@ export default function VideosPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold md:text-3xl">Videos</h1>
         <FileUploadDialog
-          fileTypes={["video/mp4", "video/webm", "video/ogg"]}
+          fileTypes={videoMimeTypes}
           trigger={
             <Button size="sm" className="h-8 gap-1">
               <PlusCircle className="h-4 w-4" />
@@ -144,7 +146,7 @@ export default function VideosPage() {
               Start by uploading your first video.
             </p>
             <FileUploadDialog
-              fileTypes={["video/mp4", "video/webm", "video/ogg"]}
+              fileTypes={videoMimeTypes}
               trigger={
                 <Button className="mt-4">
                   <PlusCircle className="mr-2 h-4 w-4" />
@@ -158,3 +160,5 @@ export default function VideosPage() {
     </>
   )
 }
+
+    

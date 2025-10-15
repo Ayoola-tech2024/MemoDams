@@ -34,6 +34,8 @@ function PhotoSkeleton() {
   );
 }
 
+const photoMimeTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+
 export default function PhotosPage() {
   const { user } = useUser();
   const firestore = useFirestore();
@@ -42,7 +44,7 @@ export default function PhotosPage() {
     if (!user || !firestore) return null;
     return query(
       collection(firestore, 'users', user.uid, 'files'), 
-      where("fileType", "in", ["image/jpeg", "image/png", "image/gif", "image/webp"]),
+      where("fileType", "in", photoMimeTypes),
       orderBy("uploadDate", "desc")
     );
   }, [user, firestore]);
@@ -54,7 +56,7 @@ export default function PhotosPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold md:text-3xl">Photos</h1>
         <FileUploadDialog
-          fileTypes={["image/jpeg", "image/png", "image/gif", "image/webp"]}
+          fileTypes={photoMimeTypes}
           trigger={
             <Button size="sm" className="h-8 gap-1">
               <PlusCircle className="h-4 w-4" />
@@ -130,7 +132,7 @@ export default function PhotosPage() {
               Start by uploading your first photo.
             </p>
             <FileUploadDialog
-              fileTypes={["image/jpeg", "image/png", "image/gif", "image/webp"]}
+              fileTypes={photoMimeTypes}
               trigger={
                 <Button className="mt-4">
                   <PlusCircle className="mr-2 h-4 w-4" />
@@ -144,3 +146,5 @@ export default function PhotosPage() {
     </>
   )
 }
+
+    

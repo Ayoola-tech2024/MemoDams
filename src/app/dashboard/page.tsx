@@ -54,48 +54,74 @@ function getGreeting() {
   return { text: "Good evening", emoji: "🌙" };
 }
 
+type CountState = {
+  notes: number;
+  photos: number;
+  videos: number;
+  files: number;
+}
+
 export default function DashboardPage() {
   const { user } = useUser()
   const firestore = useFirestore()
   const [greeting, setGreeting] = useState({ text: "", emoji: "" });
+  const [counts, setCounts] = useState<CountState>({ notes: 0, photos: 0, videos: 0, files: 0 });
+  const [isLoadingCounts, setIsLoadingCounts] = useState(true);
 
   useEffect(() => {
     setGreeting(getGreeting());
-  }, []);
 
-  const notesQuery = useMemoFirebase(() => {
+    async function fetchCounts() {
+      if (!user || !firestore) return;
+      setIsLoadingCounts(true);
+      try {
+        const notesQuery = query(collection(firestore, 'users', user.uid, 'notes'));
+        const photosQuery = query(collection(firestore, 'users', user.uid, 'files'), where("fileType", ">=", "image/"), where("fileType", "<", "image/~"));
+        const videosQuery = query(collection(firestore, 'users', user.uid, 'files'), where("fileType", ">=", "video/"), where("fileType", "<", "video/~"));
+        const filesQuery = query(collection(firestore, 'users', user.uid, 'files'));
+
+        const [notesSnap, photosSnap, videosSnap, filesSnap] = await Promise.all([
+          getCountFromServer(notesQuery),
+          getCountFromServer(photosQuery),
+          getCountFromServer(videosQuery),
+          getCountFromServer(filesQuery),
+        ]);
+        
+        setCounts({
+          notes: notesSnap.data().count,
+          photos: photosSnap.data().count,
+          videos: videosSnap.data().count,
+          files: filesSnap.data().count,
+        });
+
+      } catch (error) {
+        console.error("Error fetching counts:", error);
+      } finally {
+        setIsLoadingCounts(false);
+      }
+    }
+
+    fetchCounts();
+
+  }, [user, firestore]);
+
+  const recentNotesQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
     return query(collection(firestore, 'users', user.uid, 'notes'), orderBy("createdAt", "desc"));
   }, [user, firestore]);
-  const { data: notes, isLoading: isLoadingNotes } = useCollection(notesQuery);
+  const { data: recentNotes, isLoading: isLoadingNotes } = useCollection(recentNotesQuery);
 
-  const photosQuery = useMemoFirebase(() => {
+  const recentFilesQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
-    return query(collection(firestore, 'users', user.uid, 'files'), where("fileType", ">=", "image/"), where("fileType", "<", "image/~"));
+    return query(collection(firestore, 'users', user.uid, 'files'), orderBy("uploadDate", "desc"));
   }, [user, firestore]);
-  const { data: photos, isLoading: isLoadingPhotos } = useCollection(photosQuery);
-  
-  const videosQuery = useMemoFirebase(() => {
-    if (!user || !firestore) return null;
-    return query(collection(firestore, 'users', user.uid, 'files'), where("fileType", ">=", "video/"), where("fileType", "<", "video/~"));
-  }, [user, firestore]);
-  const { data: videos, isLoading: isLoadingVideos } = useCollection(videosQuery);
+  const { data: recentUploads, isLoading: isLoadingFiles } = useCollection(recentFilesQuery);
 
-  const filesQuery = useMemoFirebase(() => {
-    if (!user || !firestore) return null;
-    return query(collection(firestore, 'users', user.uid, 'files'));
-  }, [user, firestore]);
-  const { data: files, isLoading: isLoadingFiles } = useCollection(filesQuery);
-
-  const recentNotes = notes?.slice(0, 2) || [];
-
-  const recentUploads = files?.sort((a, b) => b.uploadDate.seconds - a.uploadDate.seconds).slice(0, 2) || [];
-  
   const overviewItems = [
-    { title: "Notes", count: notes?.length ?? 0, icon: BookText, href: "/dashboard/notes", isLoading: isLoadingNotes },
-    { title: "Photos", count: photos?.length ?? 0, icon: ImageIcon, href: "/dashboard/photos", isLoading: isLoadingPhotos },
-    { title: "Videos", count: videos?.length ?? 0, icon: Video, href: "/dashboard/videos", isLoading: isLoadingVideos },
-    { title: "Files", count: files?.length ?? 0, icon: FileArchive, href: "/dashboard/files", isLoading: isLoadingFiles },
+    { title: "Notes", count: counts.notes, icon: BookText, href: "/dashboard/notes", isLoading: isLoadingCounts },
+    { title: "Photos", count: counts.photos, icon: ImageIcon, href: "/dashboard/photos", isLoading: isLoadingCounts },
+    { title: "Videos", count: counts.videos, icon: Video, href: "/dashboard/videos", isLoading: isLoadingCounts },
+    { title: "Files", count: counts.files, icon: FileArchive, href: "/dashboard/files", isLoading: isLoadingCounts },
   ]
 
   return (
@@ -143,9 +169,9 @@ export default function DashboardPage() {
                   <Skeleton className="h-8 w-16" />
                 </div>
               </div>
-            ) : recentNotes.length > 0 ? (
+            ) : recentNotes && recentNotes.length > 0 ? (
                <div className="space-y-4">
-                {recentNotes.map(note => (
+                {(recentNotes.slice(0, 2) || []).map(note => (
                    <div key={note.id} className="flex items-start justify-between">
                     <div>
                       <h3 className="font-semibold">{note.title}</h3>
@@ -191,9 +217,9 @@ export default function DashboardPage() {
                      </div>
                   </div>
                 </div>
-            ) : recentUploads.length > 0 ? (
+            ) : recentUploads && recentUploads.length > 0 ? (
                <div className="space-y-4">
-                {recentUploads.map(file => (
+                {(recentUploads.slice(0, 2) || []).map(file => (
                   <div key={file.id} className="flex items-center gap-4">
                     <div className="rounded-md bg-secondary p-3">
                       {file.fileType.startsWith('image/') ? <ImageIcon className="h-5 w-5 text-muted-foreground" /> : <FileArchive className="h-5 w-5 text-muted-foreground" />}
@@ -201,7 +227,7 @@ export default function DashboardPage() {
                     <div>
                       <p className="text-sm font-medium leading-none truncate">{file.name}</p>
                        <p className="text-sm text-muted-foreground">
-                        {file.uploadDate ? format(new Date(file.uploadDate.seconds * 1000), "PPp") : 'Uploaded recently'}
+                        {file.uploadDate ? new Date(file.uploadDate.seconds * 1000).toLocaleDateString() : 'Uploaded recently'}
                       </p>
                     </div>
                   </div>
@@ -220,3 +246,5 @@ export default function DashboardPage() {
     </div>
   )
 }
+
+    
