@@ -1,3 +1,4 @@
+
 "use client"
 
 import Link from "next/link"
@@ -8,13 +9,13 @@ import { z } from "zod"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Logo } from "@/components/logo"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { useAuth, useUser } from "@/firebase"
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useToast } from "@/hooks/use-toast"
+import { Eye, EyeOff } from "lucide-react"
 
 function GoogleIcon() {
   return (
@@ -37,6 +38,7 @@ export default function LoginPage() {
   const auth = useAuth()
   const { user, isUserLoading } = useUser()
   const { toast } = useToast()
+  const [showPassword, setShowPassword] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -126,9 +128,20 @@ export default function LoginPage() {
                   render={({ field }) => (
                     <FormItem className="grid gap-2">
                       <FormLabel>Password</FormLabel>
-                      <FormControl>
-                        <Input type="password" {...field} />
-                      </FormControl>
+                       <div className="relative">
+                        <FormControl>
+                          <Input type={showPassword ? "text" : "password"} {...field} />
+                        </FormControl>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute inset-y-0 right-0 h-full px-3"
+                          onClick={() => setShowPassword(!showPassword)}
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
