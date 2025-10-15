@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Button } from "@/components/ui/button"
@@ -32,6 +33,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 
 
 const profileSchema = z.object({
@@ -54,6 +56,9 @@ export default function ProfilePage() {
   const auth = useAuth();
   const { toast } = useToast();
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
 
   const profileForm = useForm<z.infer<typeof profileSchema>>({
     resolver: zodResolver(profileSchema),
@@ -98,12 +103,18 @@ export default function ProfilePage() {
         setIsPasswordDialogOpen(false); // Close dialog on success
     } catch (error: any) {
         console.error("Password update failed", error);
-        toast({ variant: "destructive", title: "Password Update Failed", description: error.message });
-         if (error.code === 'auth/wrong-password') {
+        if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') {
             passwordForm.setError("currentPassword", { type: "manual", message: "Incorrect current password."})
+             toast({ variant: "destructive", title: "Password Update Failed", description: "The current password you entered is incorrect." });
+        } else {
+             toast({ variant: "destructive", title: "Password Update Failed", description: error.message });
         }
     }
   }
+
+  const isPasswordProvider = user?.providerData.some(
+    (provider) => provider.providerId === "password"
+  );
 
 
   if (!user) {
@@ -177,80 +188,115 @@ export default function ProfilePage() {
           </Form>
         </Card>
 
-        <Card>
-           <Form {...passwordForm}>
-            <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)}>
-              <CardHeader>
-                <CardTitle>Password</CardTitle>
-                <CardDescription>
-                  Update your password here. It's a good practice to use a strong, unique password.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-6">
-                 <FormField
-                  control={passwordForm.control}
-                  name="newPassword"
-                  render={({ field }) => (
-                    <FormItem className="grid gap-2">
-                      <FormLabel>New Password</FormLabel>
-                       <FormControl>
-                        <Input type="password" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 <FormField
-                  control={passwordForm.control}
-                  name="confirmPassword"
-                  render={({ field }) => (
-                    <FormItem className="grid gap-2">
-                      <FormLabel>Confirm New Password</FormLabel>
-                       <FormControl>
-                        <Input type="password" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </CardContent>
-              <CardFooter className="border-t px-6 py-4">
-                 <AlertDialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
-                  <AlertDialogTrigger asChild>
-                    <Button type="button">Update Password</Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Confirm Your Identity</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        For your security, please enter your current password to make this change.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                     <FormField
-                        control={passwordForm.control}
-                        name="currentPassword"
-                        render={({ field }) => (
-                          <FormItem className="grid gap-2 mt-4">
-                            <FormLabel>Current Password</FormLabel>
+        {isPasswordProvider && (
+            <Card>
+            <Form {...passwordForm}>
+                <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)}>
+                <CardHeader>
+                    <CardTitle>Password</CardTitle>
+                    <CardDescription>
+                    Update your password here. It's a good practice to use a strong, unique password.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-6">
+                    <FormField
+                      control={passwordForm.control}
+                      name="newPassword"
+                      render={({ field }) => (
+                        <FormItem className="grid gap-2">
+                          <FormLabel>New Password</FormLabel>
+                          <div className="relative">
                             <FormControl>
-                              <Input type="password" {...field} autoFocus />
+                              <Input type={showNewPassword ? "text" : "password"} {...field} />
                             </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={passwordForm.handleSubmit(onPasswordSubmit)} disabled={passwordForm.formState.isSubmitting}>
-                        {passwordForm.formState.isSubmitting ? "Updating..." : "Confirm and Update"}
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </CardFooter>
-            </form>
-           </Form>
-        </Card>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="absolute inset-y-0 right-0 h-full px-3"
+                              onClick={() => setShowNewPassword(!showNewPassword)}
+                            >
+                              {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </Button>
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={passwordForm.control}
+                      name="confirmPassword"
+                      render={({ field }) => (
+                        <FormItem className="grid gap-2">
+                          <FormLabel>Confirm New Password</FormLabel>
+                           <div className="relative">
+                            <FormControl>
+                              <Input type={showConfirmPassword ? "text" : "password"} {...field} />
+                            </FormControl>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="absolute inset-y-0 right-0 h-full px-3"
+                              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            >
+                              {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </Button>
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                </CardContent>
+                <CardFooter className="border-t px-6 py-4">
+                    <AlertDialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
+                    <AlertDialogTrigger asChild>
+                        <Button type="button">Update Password</Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                        <AlertDialogTitle>Confirm Your Identity</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            For your security, please enter your current password to make this change.
+                        </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <FormField
+                            control={passwordForm.control}
+                            name="currentPassword"
+                            render={({ field }) => (
+                            <FormItem className="grid gap-2 mt-4">
+                                <FormLabel>Current Password</FormLabel>
+                                <div className="relative">
+                                <FormControl>
+                                <Input type={showCurrentPassword ? "text" : "password"} {...field} autoFocus />
+                                </FormControl>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="absolute inset-y-0 right-0 h-full px-3"
+                                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                                >
+                                    {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                </Button>
+                                </div>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+                        <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={passwordForm.handleSubmit(onPasswordSubmit)} disabled={passwordForm.formState.isSubmitting}>
+                            {passwordForm.formState.isSubmitting ? "Updating..." : "Confirm and Update"}
+                        </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                    </AlertDialog>
+                </CardFooter>
+                </form>
+            </Form>
+            </Card>
+        )}
       </div>
     </>
   )
