@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Button } from "@/components/ui/button"
@@ -25,7 +26,7 @@ interface OverviewItemProps {
 
 function OverviewCard({ title, icon: Icon, href, count, isLoading }: OverviewItemProps) {
   return (
-    <Card>
+    <Card className="transform-gpu transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/20">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
         <Icon className="h-4 w-4 text-muted-foreground" />
@@ -85,7 +86,7 @@ export default function DashboardPage() {
   ]
 
   return (
-    <>
+    <div className="animate-in fade-in duration-500">
       <div className="flex items-center justify-between">
         <div className="grid gap-1">
           <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
@@ -96,13 +97,15 @@ export default function DashboardPage() {
           </p>
         </div>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {overviewItems.map((item) => (
-          <OverviewCard key={item.title} {...item} />
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mt-6">
+        {overviewItems.map((item, index) => (
+          <div key={item.title} className="animate-in fade-in slide-in-from-top-4" style={{ animationDelay: `${index * 100}ms`, animationFillMode: 'backwards' }}>
+            <OverviewCard {...item} />
+          </div>
         ))}
       </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7 mt-6">
+        <Card className="col-span-4 animate-in fade-in slide-in-from-bottom-4" style={{ animationDelay: '500ms', animationFillMode: 'backwards' }}>
           <CardHeader>
             <CardTitle>Recent Notes</CardTitle>
             <CardDescription>
@@ -150,7 +153,7 @@ export default function DashboardPage() {
             )}
           </CardContent>
         </Card>
-        <Card className="col-span-4 lg:col-span-3">
+        <Card className="col-span-4 lg:col-span-3 animate-in fade-in slide-in-from-bottom-4" style={{ animationDelay: '600ms', animationFillMode: 'backwards' }}>
           <CardHeader>
             <CardTitle>Recent Uploads</CardTitle>
             <CardDescription>
@@ -199,6 +202,6 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-    </>
+    </div>
   )
 }
