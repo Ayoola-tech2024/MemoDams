@@ -13,8 +13,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase"
 import { doc } from "firebase/firestore";
 import Link from "next/link";
-import { Settings } from "lucide-react";
+import { Settings, Calendar, LogIn } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { format } from "date-fns";
 
 
 export default function ProfilePage() {
@@ -90,8 +91,36 @@ export default function ProfilePage() {
             
           </CardContent>
         </Card>
+
+        <Card>
+           <CardHeader>
+                <CardTitle>Account Details</CardTitle>
+                <CardDescription>
+                    Your account-related information.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 text-sm">
+                <div className="flex items-center">
+                    <Calendar className="mr-3 h-5 w-5 text-muted-foreground" />
+                    <div className="grid gap-0.5">
+                        <p className="font-medium">Date Created</p>
+                        {isLoading || !user?.metadata.creationTime ? <Skeleton className="h-4 w-48" /> : (
+                           <p className="text-muted-foreground">{format(new Date(user.metadata.creationTime), "PPpp")}</p>
+                        )}
+                    </div>
+                </div>
+                 <div className="flex items-center">
+                    <LogIn className="mr-3 h-5 w-5 text-muted-foreground" />
+                    <div className="grid gap-0.5">
+                        <p className="font-medium">Last Login</p>
+                         {isLoading || !user?.metadata.lastSignInTime ? <Skeleton className="h-4 w-48" /> : (
+                           <p className="text-muted-foreground">{format(new Date(user.metadata.lastSignInTime), "PPpp")}</p>
+                        )}
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
       </div>
     </>
   )
 }
-
