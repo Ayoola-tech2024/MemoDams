@@ -67,7 +67,24 @@ export default function AdminPage() {
 
   const handleMakeAdmin = async (targetUserId: string) => {
     try {
-      const result = await setAdminClaim({ userId: targetUserId });
+      if (!user) throw new Error("Not authenticated.");
+
+      const idToken = await user.getIdToken();
+      const response = await fetch('/api/setAdminClaim', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ userId: targetUserId }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Server error occurred.");
+      }
+
       if (result.success) {
         toast({
           title: "Success",
@@ -180,5 +197,3 @@ export default function AdminPage() {
     </>
   );
 }
-
-    

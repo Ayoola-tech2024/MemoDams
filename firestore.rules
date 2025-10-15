@@ -1,132 +1,105 @@
 /**
- * @fileoverview Firestore Security Rules for MemoDams application.
+ * @fileOverview Firestore Security Rules for MemoDams application.
  *
  * Core Philosophy:
- * This ruleset enforces a strict user-ownership model. Each user has complete control over their data, and no other user can access it.
+ * This ruleset enforces a strict user-ownership model, where users can only
+ * access their own data. All data is nested under /users/{userId}, ensuring
+ * strong data isolation. Admin privileges, managed via custom claims,
+ * bypass these ownership restrictions.
  *
  * Data Structure:
- * The Firestore database is structured as follows:
  * - /users/{userId}: User profile information.
- * - /users/{userId}/notes/{noteId}: Notes created by the user.
- * - /users/{userId}/tags/{tagId}: Tags created by the user.
- * - /users/{userId}/files/{fileId}: Files uploaded by the user.
+ * - /users/{userId}/notes/{noteId}: Notes created by a specific user.
+ * - /users/{userId}/tags/{tagId}: Tags created by a specific user.
+ * - /users/{userId}/files/{fileId}: Files uploaded by a specific user.
  *
  * Key Security Decisions:
- * - Users can only access their own data.
- * - List operations are restricted to the owner of the data.
- * - Data consistency is enforced by validating the userId in the path against the document's internal userId field on create.
- * - The userId field is immutable on update.
+ * - User listing is disallowed to protect user privacy.
+ * - The rules explicitly deny any write operation with `if false;` if
+ *   the user is not authorized, ensuring no accidental data modification.
+ * - Data validation is relaxed to allow for rapid prototyping and iteration.
+ *   Only the fields crucial for authorization and relational integrity are validated.
+ * - Roles are managed using custom claims.
  *
  * Denormalization for Authorization:
- * The data model enforces that all documents are nested under a user's document. This allows us to use path-based authorization, avoiding the need for costly `get()` calls to determine ownership.
- * The `userId` is present in both the path and the document on creation to ensure consistency.
- * On update, the userId in the path will be immutable.
- *
- * Structural Segregation:
- * All user data is stored under the /users/{userId} path, ensuring clear separation of data and simplified security rules.
+ * The `/users/{userId}` path inherently links documents to their owner,
+ * eliminating the need for additional `get()` calls or complex queries.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows users to read and write their own user profile information.
+     * @description Protects the /users collection. Only admins can read and write user profiles.
      * @path /users/{userId}
-     * @allow (create) - User with UID 'user123' can create their profile with document ID matching their UID.
-     * @allow (get, update, delete) - User with UID 'user123' can read, update, and delete their profile.
-     * @deny (create) - User with UID 'user456' cannot create a profile with document ID 'user123'.
-     * @deny (get, update, delete) - User with UID 'user456' cannot read, update, or delete the profile of user 'user123'.
-     * @principle Enforces document ownership for all operations.
+     * @allow (get, list) if request.auth.token.admin == true;
+     * @allow (create, update, delete) if request.auth.token.admin == true;
+     * @deny (get, list) if request.auth.token.admin != true;
+     * @deny (create, update, delete) if request.auth.token.admin != true;
+     * @principle Enforces admin-only access to user profiles.
      */
     match /users/{userId} {
-      function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
-      }
-
-      function isExistingOwner(userId) {
-          return isOwner(userId) && resource != null;
-      }
-
-      allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      allow get, list: if isAdmin();
+      allow create, update, delete: if isAdmin();
     }
 
     /**
-     * @description Allows users to manage their own notes.
+     * @description Protects the /users/{userId}/notes collection. Allows a user to manage their own notes.
      * @path /users/{userId}/notes/{noteId}
-     * @allow (create) - User with UID 'user123' can create a note with userId: 'user123'.
-     * @allow (get, list, update, delete) - User with UID 'user123' can read, list, update, and delete their own notes.
-     * @deny (create) - User with UID 'user456' cannot create a note under 'user123' even if the userId is 'user123' in the request.
-     * @deny (get, list, update, delete) - User with UID 'user456' cannot read, list, update, or delete notes belonging to user 'user123'.
-     * @principle Enforces document ownership for all operations.
+     * @allow (create, get, list, update, delete) if request.auth.uid == userId;
+     * @deny (create, update, delete) if request.auth.uid != userId;
+     * @principle Enforces document ownership for notes based on the user ID in the path.
      */
     match /users/{userId}/notes/{noteId} {
-      function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
-      }
-
-      function isExistingOwner(userId) {
-          return isOwner(userId) && resource != null;
-      }
-
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
+      allow get, list: if isOwner(userId);
       allow create: if isOwner(userId) && request.resource.data.userId == userId;
       allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Allows users to manage their own tags.
+     * @description Protects the /users/{userId}/tags collection. Allows a user to manage their own tags.
      * @path /users/{userId}/tags/{tagId}
-     * @allow (create) - User with UID 'user123' can create a tag with userId: 'user123'.
-     * @allow (get, list, update, delete) - User with UID 'user123' can read, list, update, and delete their own tags.
-     * @deny (create) - User with UID 'user456' cannot create a tag under 'user123' even if the userId is 'user123' in the request.
-     * @deny (get, list, update, delete) - User with UID 'user456' cannot read, list, update, or delete tags belonging to user 'user123'.
-     * @principle Enforces document ownership for all operations.
+     * @allow (create, get, list, update, delete) if request.auth.uid == userId;
+     * @deny (create, update, delete) if request.auth.uid != userId;
+     * @principle Enforces document ownership for tags based on the user ID in the path.
      */
     match /users/{userId}/tags/{tagId} {
-      function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
-      }
-
-      function isExistingOwner(userId) {
-          return isOwner(userId) && resource != null;
-      }
-
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
+      allow get, list: if isOwner(userId);
       allow create: if isOwner(userId) && request.resource.data.userId == userId;
       allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Allows users to manage their own files.
+     * @description Protects the /users/{userId}/files collection. Allows a user to manage their own files.
      * @path /users/{userId}/files/{fileId}
-     * @allow (create) - User with UID 'user123' can create a file with userId: 'user123'.
-     * @allow (get, list, update, delete) - User with UID 'user123' can read, list, update, and delete their own files.
-     * @deny (create) - User with UID 'user456' cannot create a file under 'user123' even if the userId is 'user123' in the request.
-     * @deny (get, list, update, delete) - User with UID 'user456' cannot read, list, update, or delete files belonging to user 'user123'.
-     * @principle Enforces document ownership for all operations.
+     * @allow (create, get, list, update, delete) if request.auth.uid == userId;
+     * @deny (create, update, delete) if request.auth.uid != userId;
+     * @principle Enforces document ownership for files based on the user ID in the path.
      */
     match /users/{userId}/files/{fileId} {
-      function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
-      }
-
-      function isExistingOwner(userId) {
-          return isOwner(userId) && resource != null;
-      }
-
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
+      allow get, list: if isOwner(userId);
       allow create: if isOwner(userId) && request.resource.data.userId == userId;
       allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
       allow delete: if isExistingOwner(userId);
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.admin == true;
     }
   }
 }

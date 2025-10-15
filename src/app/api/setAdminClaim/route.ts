@@ -1,6 +1,5 @@
 
-'use server';
-
+import { NextResponse } from 'next/server';
 import { getAuth } from 'firebase-admin/auth';
 import { initializeApp, getApps, App } from 'firebase-admin/app';
 import { headers } from 'next/headers';
@@ -12,17 +11,10 @@ function initializeAdminApp(): App {
   if (apps.length > 0) {
     return apps[0]!;
   }
-  // This is a simplified initialization. In a real production environment,
-  // you would use service account credentials, ideally from environment variables.
-  return initializeApp({
-    projectId: firebaseConfig.projectId,
-    // For local development with emulators, you might not need credentials.
-    // For production, you MUST provide credentials.
-    // credential: applicationDefault(), // Example for production
-  });
+  return initializeApp({ projectId: firebaseConfig.projectId });
 }
 
-export async function setAdminClaim(data: { userId: string }): Promise<{ success: boolean; error?: string }> {
+export async function POST(request: Request) {
   try {
     const adminApp = initializeAdminApp();
     const adminAuth = getAuth(adminApp);
@@ -30,13 +22,13 @@ export async function setAdminClaim(data: { userId: string }): Promise<{ success
     const authorization = headersList.get('authorization');
     
     if (!authorization?.startsWith('Bearer ')) {
-        throw new Error('Unauthorized: No ID token provided.');
+      return NextResponse.json({ success: false, error: 'Unauthorized: No ID token provided.' }, { status: 401 });
     }
 
     const idToken = authorization.split('Bearer ')[1];
     
     if (!idToken) {
-         throw new Error('Unauthorized: ID token is empty.');
+      return NextResponse.json({ success: false, error: 'Unauthorized: ID token is empty.' }, { status: 401 });
     }
 
     // Verify the ID token of the *calling* user to ensure they are an admin
@@ -44,16 +36,21 @@ export async function setAdminClaim(data: { userId: string }): Promise<{ success
     
     // SECURITY CHECK: Only allow users who are already admins (by claim or email) to perform this action.
     if (decodedToken.admin !== true && decodedToken.email !== 'damisileayoola@gmail.com') {
-      throw new Error('Forbidden: You do not have permission to perform this action.');
+      return NextResponse.json({ success: false, error: 'Forbidden: You do not have permission to perform this action.' }, { status: 403 });
+    }
+
+    const { userId } = await request.json();
+    if (!userId) {
+      return NextResponse.json({ success: false, error: 'User ID is required.' }, { status: 400 });
     }
 
     // Set the custom claim on the target user
-    await adminAuth.setCustomUserClaims(data.userId, { admin: true });
+    await adminAuth.setCustomUserClaims(userId, { admin: true });
 
-    return { success: true };
+    return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('Error setting admin claim:', error);
     // Return a sanitized error message
-    return { success: false, error: error.message || 'An internal server error occurred.' };
+    return NextResponse.json({ success: false, error: error.message || 'An internal server error occurred.' }, { status: 500 });
   }
 }
