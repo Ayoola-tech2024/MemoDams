@@ -59,7 +59,7 @@ export default function Home() {
           </div>
           <div className="container relative z-10 flex flex-col items-center">
             <div className="mb-8">
-              <Logo />
+              <Logo showText={false} />
             </div>
             <h1 className="text-4xl font-extrabold tracking-tight md:text-5xl">
               Your notes, memories, and files,
@@ -79,7 +79,7 @@ export default function Home() {
                 </Link>
               </Button>
               <Button size="lg" variant="outline" asChild>
-                <Link href="/login">Login</Link>
+                <a href="#features">Learn More</a>
               </Button>
             </div>
           </div>
@@ -113,14 +113,14 @@ export default function Home() {
       </main>
 
       <footer className="border-t">
-        <div className="container flex flex-col items-center justify-center gap-4 py-10 md:h-24 md:flex-col md:py-0">
-          <div className="flex flex-col items-center gap-4 px-8 md:px-0">
+        <div className="container flex flex-col items-center justify-center gap-4 py-10 text-center md:h-24 md:flex-row md:py-0">
+          <div className="flex flex-col items-center gap-4 px-8 md:flex-row md:gap-2 md:px-0">
             <Logo />
-            <p className="text-center text-sm leading-loose text-muted-foreground">
+            <p className="text-sm leading-loose text-muted-foreground">
               © 2025 MemoDams. Built by Ayoola Damisile.
             </p>
           </div>
-          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+          <div className="flex items-center gap-4 text-sm text-muted-foreground md:ml-auto">
             <Link href="/login" className="hover:text-foreground">Login</Link>
             <Link href="/signup" className="hover:text-foreground">Sign Up</Link>
             <Link href="#" className="hover:text-foreground">About</Link>

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Notebook } from 'lucide-react';
 
-export function Logo() {
+export function Logo({ showText = true }: { showText?: boolean }) {
   return (
     <Link
       href="/"
@@ -11,7 +11,7 @@ export function Logo() {
       <div className="rounded-lg bg-primary p-2 text-primary-foreground">
         <Notebook className="h-5 w-5" />
       </div>
-      MemoDams
+      {showText && 'MemoDams'}
     </Link>
   );
 }
