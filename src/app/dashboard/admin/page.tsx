@@ -24,6 +24,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { MoreHorizontal, ShieldCheck } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useToast } from "@/hooks/use-toast";
 
 interface AppUser {
   id: string;
@@ -32,6 +36,7 @@ interface AppUser {
   createdAt: { seconds: number; nanoseconds: number };
   profilePictureUrl?: string;
   isEmailVerified: boolean;
+  claims?: { [key: string]: any };
 }
 
 function UserRowSkeleton() {
@@ -49,8 +54,14 @@ function UserRowSkeleton() {
             <TableCell className="hidden md:table-cell">
                 <Skeleton className="h-4 w-16" />
             </TableCell>
+            <TableCell className="hidden lg:table-cell">
+                <Skeleton className="h-6 w-20 rounded-full" />
+            </TableCell>
             <TableCell className="hidden sm:table-cell">
                 <Skeleton className="h-4 w-28" />
+            </TableCell>
+            <TableCell>
+                <Skeleton className="h-8 w-8" />
             </TableCell>
         </TableRow>
     )
@@ -60,6 +71,7 @@ export default function AdminPage() {
   const { user: currentUser, isUserLoading } = useUser();
   const firestore = useFirestore();
   const router = useRouter();
+  const { toast } = useToast();
   const [isAdmin, setIsAdmin] = useState(false);
   const [isCheckingAdmin, setIsCheckingAdmin] = useState(true);
 
@@ -71,7 +83,7 @@ export default function AdminPage() {
     }
     
     setIsCheckingAdmin(true);
-    currentUser.getIdTokenResult(true) // Force refresh the token
+    currentUser.getIdTokenResult(true)
         .then(idTokenResult => {
             const claims = idTokenResult.claims;
             if (claims.admin === true || currentUser.email === 'damisileayoola@gmail.com') {
@@ -94,6 +106,14 @@ export default function AdminPage() {
   }, [firestore, isAdmin]);
 
   const { data: users, isLoading } = useCollection<AppUser>(usersQuery);
+
+  const handleMakeAdmin = (userId: string) => {
+    toast({
+      title: "Backend Function Required",
+      description: "To make a user an admin, you need to set a custom claim. This requires a secure backend function (like a Firebase Cloud Function) that uses the Firebase Admin SDK. This UI is ready, but the backend logic needs to be deployed.",
+      duration: 10000,
+    });
+  };
 
   if (isUserLoading || isCheckingAdmin || !isAdmin) {
     return (
@@ -122,8 +142,12 @@ export default function AdminPage() {
               <TableRow>
                 <TableHead>User</TableHead>
                 <TableHead className="hidden md:table-cell">Status</TableHead>
+                <TableHead className="hidden lg:table-cell">Role</TableHead>
                 <TableHead className="hidden sm:table-cell">
                   Date Joined
+                </TableHead>
+                <TableHead>
+                    <span className="sr-only">Actions</span>
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -153,10 +177,37 @@ export default function AdminPage() {
                       {user.isEmailVerified ? "Verified" : "Unverified"}
                     </Badge>
                   </TableCell>
+                  <TableCell className="hidden lg:table-cell">
+                    {user.claims?.admin ? (
+                      <Badge variant="default" className="gap-1 pl-2">
+                        <ShieldCheck className="h-3.5 w-3.5" />
+                        Admin
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline">User</Badge>
+                    )}
+                  </TableCell>
                   <TableCell className="hidden sm:table-cell">
                      {user.createdAt
                       ? format(new Date(user.createdAt.seconds * 1000), "PPp")
                       : "No date"}
+                  </TableCell>
+                  <TableCell>
+                    {!user.claims?.admin && user.email !== 'damisileayoola@gmail.com' && (
+                         <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                            <Button aria-haspopup="true" size="icon" variant="ghost">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Toggle menu</span>
+                            </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleMakeAdmin(user.id)}>
+                                Make Admin
+                            </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
