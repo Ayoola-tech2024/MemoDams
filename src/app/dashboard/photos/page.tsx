@@ -13,12 +13,12 @@ import {
 import { useCollection, useFirestore, useUser, useMemoFirebase } from "@/firebase";
 import { collection, query, where, orderBy } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
+import { FileUploadDialog } from "@/components/file-upload-dialog";
 
 interface Photo {
   id: string;
   name: string;
   url: string;
-  // data-ai-hint can be derived from name or another field if needed
 }
 
 function PhotoSkeleton() {
@@ -50,10 +50,15 @@ export default function PhotosPage() {
     <>
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold md:text-3xl">Photos</h1>
-        <Button size="sm" className="h-8 gap-1">
-          <PlusCircle className="h-4 w-4" />
-          <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Upload Photo</span>
-        </Button>
+        <FileUploadDialog
+          fileTypes={["image/jpeg", "image/png", "image/gif", "image/webp"]}
+          trigger={
+            <Button size="sm" className="h-8 gap-1">
+              <PlusCircle className="h-4 w-4" />
+              <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Upload Photo</span>
+            </Button>
+          }
+        />
       </div>
 
        {isLoading && (
@@ -113,10 +118,15 @@ export default function PhotosPage() {
             <p className="text-sm text-muted-foreground">
               Start by uploading your first photo.
             </p>
-            <Button className="mt-4">
-               <PlusCircle className="mr-2 h-4 w-4" />
-              Upload Photo
-            </Button>
+            <FileUploadDialog
+              fileTypes={["image/jpeg", "image/png", "image/gif", "image/webp"]}
+              trigger={
+                <Button className="mt-4">
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Upload Photo
+                </Button>
+              }
+            />
           </div>
         </div>
       )}

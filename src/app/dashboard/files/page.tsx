@@ -15,9 +15,10 @@ import {
 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useCollection, useFirestore, useUser, useMemoFirebase } from "@/firebase";
-import { collection, query, orderBy, where } from "firebase/firestore";
+import { collection, query, orderBy } from "firebase/firestore";
 import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
+import { FileUploadDialog } from "@/components/file-upload-dialog";
 
 interface File {
   id: string;
@@ -63,10 +64,12 @@ export default function FilesPage() {
     <>
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold md:text-3xl">Files</h1>
-        <Button size="sm" className="h-8 gap-1">
-          <PlusCircle className="h-4 w-4" />
-          <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Upload File</span>
-        </Button>
+         <FileUploadDialog trigger={
+            <Button size="sm" className="h-8 gap-1">
+              <PlusCircle className="h-4 w-4" />
+              <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Upload File</span>
+            </Button>
+          } />
       </div>
 
        {isLoading && (
@@ -155,10 +158,12 @@ export default function FilesPage() {
             <p className="text-sm text-muted-foreground">
               Start by uploading your first file.
             </p>
-            <Button className="mt-4">
-               <PlusCircle className="mr-2 h-4 w-4" />
-              Upload File
-            </Button>
+             <FileUploadDialog trigger={
+              <Button className="mt-4">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Upload File
+              </Button>
+             } />
           </div>
         </div>
       )}
