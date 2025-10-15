@@ -11,6 +11,7 @@ import { useCollection, useFirestore, useUser, useMemoFirebase } from "@/firebas
 import { collection, query, orderBy } from "firebase/firestore";
 import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CreateNoteButton } from "./create-note-button";
 
 interface Note {
   id: string;
@@ -78,10 +79,7 @@ export default function NotesPage() {
               <DropdownMenuCheckboxItem>Idea</DropdownMenuCheckboxItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button size="sm" className="h-8 gap-1">
-            <PlusCircle className="h-4 w-4" />
-            <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Create Note</span>
-          </Button>
+          <CreateNoteButton />
         </div>
       </div>
 
@@ -128,10 +126,9 @@ export default function NotesPage() {
             <p className="text-sm text-muted-foreground">
               Start by creating a new note to capture your thoughts.
             </p>
-            <Button className="mt-4">
-               <PlusCircle className="mr-2 h-4 w-4" />
-              Create Note
-            </Button>
+            <div className="mt-4">
+              <CreateNoteButton />
+            </div>
           </div>
         </div>
       )}
