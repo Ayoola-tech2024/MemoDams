@@ -12,6 +12,8 @@ export const metadata: Metadata = {
   title: 'MemoDams - Secure Cloud Storage for Notes, Photos, and Files',
   description: 'MemoDams is your all-in-one digital vault. Securely store, organize, and access your notes, photos, videos, and important files from anywhere. Privacy first, cloud-powered.',
   keywords: ['cloud storage', 'note taking', 'photo storage', 'file management', 'secure notes', 'digital diary', 'firebase'],
+  authors: [{ name: 'Ayoola Damisile' }],
+  creator: 'Ayoola Damisile',
   openGraph: {
     title: 'MemoDams - Your Digital Life, Secured',
     description: 'The all-in-one app to securely manage notes, photos, videos, and files. Your personal cloud-powered digital space.',
