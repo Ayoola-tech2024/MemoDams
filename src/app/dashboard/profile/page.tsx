@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase"
+import { useUser, useFirestore, useDoc, useMemoFirebase, FirestorePermissionError, errorEmitter } from "@/firebase"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -106,13 +106,25 @@ export default function ProfilePage() {
 
   async function onProfileSubmit(values: z.infer<typeof profileSchema>) {
     if (!user || !userProfileRef) return;
-    try {
-      await updateProfile(user, { displayName: values.fullName });
-      await setDoc(userProfileRef, { bio: values.bio }, { merge: true });
-      toast({ title: "Profile Updated", description: "Your profile has been successfully updated." });
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Update Failed", description: error.message });
-    }
+    
+    // Non-blocking UI update
+    updateProfile(user, { displayName: values.fullName }).catch(err => {
+      toast({ variant: "destructive", title: "Update Failed", description: err.message });
+    });
+
+    const profileData = { bio: values.bio };
+    setDoc(userProfileRef, profileData, { merge: true })
+      .then(() => {
+          toast({ title: "Profile Updated", description: "Your profile has been successfully updated." });
+      })
+      .catch((error) => {
+        const permissionError = new FirestorePermissionError({
+          path: userProfileRef.path,
+          operation: 'update',
+          requestResourceData: profileData
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
   }
 
   async function onPasswordSubmit(values: z.infer<typeof passwordSchema>) {
@@ -139,17 +151,27 @@ export default function ProfilePage() {
 
   async function handlePhotoUploadComplete(downloadURL: string) {
     if (!user || !userProfileRef) return;
-    try {
-      await updateProfile(user, { photoURL: downloadURL });
-      await setDoc(userProfileRef, { profilePictureUrl: downloadURL }, { merge: true });
-      toast({ title: "Profile Photo Updated", description: "Your new photo has been saved."});
-      startTransition(() => {
-        // Force a refresh of the layout to show the new avatar
-        router.refresh();
-      });
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Photo Update Failed", description: error.message });
-    }
+
+    updateProfile(user, { photoURL: downloadURL }).catch(err => {
+        toast({ variant: "destructive", title: "Photo Update Failed", description: err.message });
+    });
+
+    const photoData = { profilePictureUrl: downloadURL };
+    setDoc(userProfileRef, photoData, { merge: true })
+        .then(() => {
+            toast({ title: "Profile Photo Updated", description: "Your new photo has been saved."});
+            startTransition(() => {
+                router.refresh();
+            });
+        })
+        .catch(error => {
+            const permissionError = new FirestorePermissionError({
+                path: userProfileRef.path,
+                operation: 'update',
+                requestResourceData: photoData
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        });
   }
 
   const isPasswordProvider = user?.providerData.some(

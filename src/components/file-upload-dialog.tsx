@@ -60,7 +60,6 @@ export function FileUploadDialog({ trigger, fileTypes, onUploadComplete }: FileU
     setUploadProgress(0);
 
     const storage = getStorage();
-    // For profile pictures, we could use a different path, but for now, this is generic
     const filePath = `users/${user.uid}/files/${Date.now()}_${file.name}`;
     const storageRef = ref(storage, filePath);
     const task = uploadBytesResumable(storageRef, file);
@@ -91,46 +90,49 @@ export function FileUploadDialog({ trigger, fileTypes, onUploadComplete }: FileU
             errorEmitter.emit('permission-error', permissionError);
         }
       },
-      async () => {
-        const downloadURL = await getDownloadURL(task.snapshot.ref);
-        
-        if (onUploadComplete) {
-            onUploadComplete(downloadURL);
-            handleClose();
-            return;
-        }
+      () => {
+        getDownloadURL(task.snapshot.ref).then(downloadURL => {
+            if (onUploadComplete) {
+                onUploadComplete(downloadURL);
+                handleClose();
+                return;
+            }
 
-        try {
-          await addDoc(collection(firestore, "users", user.uid, "files"), {
-            name: file.name,
-            url: downloadURL,
-            fileType: file.type,
-            fileSize: file.size,
-            uploadDate: serverTimestamp(),
-            userId: user.uid,
-          });
+            const fileData = {
+                name: file.name,
+                url: downloadURL,
+                fileType: file.type,
+                fileSize: file.size,
+                uploadDate: serverTimestamp(),
+                userId: user.uid,
+            };
 
-          toast({
-            title: "Upload Successful",
-            description: `${file.name} has been uploaded.`,
-          });
-          
-          startTransition(() => {
-            router.refresh();
-          });
-          
-          handleClose();
-
-        } catch (firestoreError: any) {
-             console.error("Firestore write failed:", firestoreError);
-             const permissionError = new FirestorePermissionError({
-                path: `users/${user.uid}/files`,
-                operation: 'create',
-             });
-             errorEmitter.emit('permission-error', permissionError);
+            addDoc(collection(firestore, "users", user.uid, "files"), fileData)
+                .then(() => {
+                    toast({
+                        title: "Upload Successful",
+                        description: `${file.name} has been uploaded.`,
+                    });
+                    startTransition(() => {
+                        router.refresh();
+                    });
+                    handleClose();
+                })
+                .catch((firestoreError: any) => {
+                    console.error("Firestore write failed:", firestoreError);
+                    const permissionError = new FirestorePermissionError({
+                        path: `users/${user.uid}/files`,
+                        operation: 'create',
+                        requestResourceData: fileData
+                    });
+                    errorEmitter.emit('permission-error', permissionError);
+                    setIsUploading(false);
+                    setUploadTask(null);
+                });
+        }).catch(err => {
+             console.error("Could not get download URL", err);
              setIsUploading(false);
-             setUploadTask(null);
-        }
+        })
       }
     );
   };

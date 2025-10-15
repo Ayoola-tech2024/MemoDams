@@ -19,7 +19,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { PlusCircle } from "lucide-react";
-import { useFirestore, useUser } from "@/firebase";
+import { useFirestore, useUser, errorEmitter, FirestorePermissionError } from "@/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 
@@ -52,30 +52,33 @@ export function CreateNoteButton() {
       return;
     }
 
-    try {
-      const notesCollection = collection(firestore, 'users', user.uid, 'notes');
-      await addDoc(notesCollection, {
-        ...values,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        userId: user.uid,
-        tagIds: [],
+    const notesCollectionRef = collection(firestore, 'users', user.uid, 'notes');
+    const newNote = {
+      ...values,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      userId: user.uid,
+      tagIds: [],
+    };
+    
+    addDoc(notesCollectionRef, newNote)
+      .then(() => {
+        toast({
+          title: "Note Created",
+          description: "Your new note has been saved successfully.",
+        });
+        form.reset();
+        setOpen(false);
+      })
+      .catch((error) => {
+        console.error("Error creating note: ", error);
+        const permissionError = new FirestorePermissionError({
+            path: notesCollectionRef.path,
+            operation: 'create',
+            requestResourceData: newNote
+        });
+        errorEmitter.emit('permission-error', permissionError);
       });
-
-      toast({
-        title: "Note Created",
-        description: "Your new note has been saved successfully.",
-      });
-      form.reset();
-      setOpen(false);
-    } catch (error: any) {
-      console.error("Error creating note: ", error);
-      toast({
-        variant: "destructive",
-        title: "Permission Denied",
-        description: "You do not have permission to create notes. Please check your Firestore security rules.",
-      });
-    }
   }
 
   return (
