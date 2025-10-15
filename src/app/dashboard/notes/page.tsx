@@ -1,50 +1,61 @@
+
+"use client";
+
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { PlusCircle, ListFilter } from "lucide-react"
+import { PlusCircle, ListFilter, NotebookPen } from "lucide-react"
 import Link from 'next/link'
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { useCollection, useFirestore, useUser, useMemoFirebase } from "@/firebase";
+import { collection, query, orderBy } from "firebase/firestore";
+import { format } from "date-fns";
+import { Skeleton } from "@/components/ui/skeleton";
 
-const notes = [
-  {
-    title: "Project MemoDam Launch",
-    date: "October 26, 2024",
-    content: "Final preparations for the big day. Need to double-check the deployment script and prepare the announcement post. The marketing team needs the final assets by EOD.",
-    tags: ["work", "project-x"],
-  },
-  {
-    title: "Grocery List",
-    date: "October 25, 2024",
-    content: "Milk, Bread, Coffee beans (dark roast), avocados, chicken breast, and that one snack I always forget the name of.",
-    tags: ["personal", "home"],
-  },
-  {
-    title: "Ideas for new feature",
-    date: "October 24, 2024",
-    content: "What if we could integrate a calendar view for notes? Users could attach notes to specific dates. This would be great for journaling or planning.",
-    tags: ["idea", "feature"],
-  },
-  {
-    title: "Book Recommendations",
-    date: "October 22, 2024",
-    content: "1. 'Project Hail Mary' by Andy Weir. 2. 'The Midnight Library' by Matt Haig. 3. 'Klara and the Sun' by Kazuo Ishiguro. All are fantastic reads.",
-    tags: ["reading", "personal"],
-  },
-  {
-    title: "Meeting Notes - Q4 Planning",
-    date: "October 20, 2024",
-    content: "Key takeaways: Focus on user retention for Q4. The main KPI will be monthly active users. New marketing campaign to launch mid-November.",
-    tags: ["work", "meeting"],
-  },
-    {
-    title: "Vacation Plans",
-    date: "October 18, 2024",
-    content: "Research flights to Kyoto for spring. Look into traditional ryokans and book a tea ceremony experience. Need to renew my passport.",
-    tags: ["travel", "personal"],
-  },
-]
+interface Note {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: { seconds: number; nanoseconds: number; };
+  tags?: string[];
+}
+
+function NoteSkeleton() {
+  return (
+    <Card className="flex flex-col">
+      <CardHeader>
+        <Skeleton className="h-6 w-3/4" />
+        <Skeleton className="h-4 w-1/2" />
+      </CardHeader>
+      <CardContent className="flex-grow">
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-2/3" />
+        </div>
+      </CardContent>
+      <CardFooter>
+        <div className="flex flex-wrap gap-2">
+          <Skeleton className="h-6 w-16 rounded-full" />
+          <Skeleton className="h-6 w-20 rounded-full" />
+        </div>
+      </CardFooter>
+    </Card>
+  );
+}
+
 
 export default function NotesPage() {
+  const { user } = useUser();
+  const firestore = useFirestore();
+
+  const notesQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return query(collection(firestore, 'users', user.uid, 'notes'), orderBy("createdAt", "desc"));
+  }, [user, firestore]);
+
+  const { data: notes, isLoading } = useCollection<Note>(notesQuery);
+
   return (
     <>
       <div className="flex items-center justify-between">
@@ -73,26 +84,57 @@ export default function NotesPage() {
           </Button>
         </div>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {notes.map((note, index) => (
-          <Card key={index} className="flex flex-col transform-gpu transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/20">
-            <CardHeader>
-              <CardTitle>{note.title}</CardTitle>
-              <CardDescription>{note.date}</CardDescription>
-            </CardHeader>
-            <CardContent className="flex-grow">
-              <p className="line-clamp-4 text-sm text-muted-foreground">{note.content}</p>
-            </CardContent>
-            <CardFooter>
-              <div className="flex flex-wrap gap-2">
-                {note.tags.map(tag => (
-                  <Badge key={tag} variant="secondary" className="font-normal">{tag}</Badge>
-                ))}
-              </div>
-            </CardFooter>
-          </Card>
-        ))}
-      </div>
+
+      {isLoading && (
+         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => <NoteSkeleton key={i} />)}
+        </div>
+      )}
+
+      {!isLoading && notes && notes.length > 0 && (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {notes.map((note) => (
+            <Card key={note.id} className="flex flex-col transform-gpu transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/20">
+              <CardHeader>
+                <CardTitle>{note.title}</CardTitle>
+                 <CardDescription>
+                  {note.createdAt ? format(new Date(note.createdAt.seconds * 1000), "MMMM dd, yyyy") : 'No date'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex-grow">
+                <p className="line-clamp-4 text-sm text-muted-foreground">{note.content}</p>
+              </CardContent>
+              <CardFooter>
+                 {note.tags && note.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {note.tags.map(tag => (
+                      <Badge key={tag} variant="secondary" className="font-normal">{tag}</Badge>
+                    ))}
+                  </div>
+                )}
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {!isLoading && (!notes || notes.length === 0) && (
+         <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm mt-4">
+          <div className="flex flex-col items-center gap-1 text-center">
+            <NotebookPen className="h-12 w-12 text-muted-foreground" />
+            <h3 className="text-2xl font-bold tracking-tight">
+              You have no notes yet
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Start by creating a new note to capture your thoughts.
+            </p>
+            <Button className="mt-4">
+               <PlusCircle className="mr-2 h-4 w-4" />
+              Create Note
+            </Button>
+          </div>
+        </div>
+      )}
     </>
   )
 }
