@@ -28,6 +28,7 @@ import {
   Menu,
   Search,
   Settings,
+  Shield,
   User,
   Video,
 } from 'lucide-react';
@@ -47,6 +48,8 @@ const navItems = [
   { href: '/dashboard/videos', icon: Video, label: 'Videos' },
   { href: '/dashboard/files', icon: FileArchive, label: 'Files' },
 ];
+
+const adminNavItem = { href: '/dashboard/admin', icon: Shield, label: 'Admin' };
 
 function NavLink({ href, icon: Icon, label }: { href: string; icon: React.ElementType; label: string }) {
   return (
@@ -69,6 +72,8 @@ export default function DashboardLayout({
   const auth = useAuth();
   const router = useRouter();
   const { toast } = useToast();
+
+  const isAdmin = user?.email === 'damisileayoola@gmail.com';
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -110,6 +115,7 @@ export default function DashboardLayout({
               {navItems.map((item) => (
                 <NavLink key={item.href} {...item} />
               ))}
+              {isAdmin && <NavLink {...adminNavItem} />}
             </nav>
           </div>
         </div>
@@ -130,13 +136,14 @@ export default function DashboardLayout({
             <SheetContent side="left" className="flex flex-col">
                <SheetHeader>
                 <SheetTitle>
-                    <Logo />
+                  <Logo />
                 </SheetTitle>
               </SheetHeader>
               <nav className="grid gap-2 text-lg font-medium mt-4">
                 {navItems.map((item) => (
                   <NavLink key={item.href} {...item} />
                 ))}
+                 {isAdmin && <NavLink {...adminNavItem} />}
               </nav>
             </SheetContent>
           </Sheet>
