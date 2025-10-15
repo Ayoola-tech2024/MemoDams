@@ -84,8 +84,3 @@
     min-height: 100vh;
   }
 }
-
-@keyframes float {
-  0% { transform: translate(0, 0) rotate(0deg); }
-  100% { transform: translate(30px, -40px) rotate(20deg); }
-}

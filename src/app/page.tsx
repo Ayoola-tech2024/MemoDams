@@ -30,7 +30,7 @@ const features = [
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col text-center">
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-14 max-w-screen-2xl items-center justify-between">
           <Logo />
@@ -49,15 +49,18 @@ export default function Home() {
       </header>
 
       <main className="flex-1">
-        <section className="relative flex h-[calc(100vh-3.5rem)] items-center py-20 md:py-32">
+        <section className="relative flex h-[calc(100vh-3.5rem)] items-center justify-center py-20 md:py-32">
           <div
             aria-hidden="true"
             className="absolute inset-0 top-0 z-0 grid grid-cols-2 -space-x-52 opacity-20"
           >
-            <div className="h-60 bg-gradient-to-br from-primary to-purple-400 blur-3xl dark:h-96"></div>
-            <div className="h-60 bg-gradient-to-r from-accent to-cyan-400 blur-3xl dark:h-96"></div>
+            <div className="h-60 bg-gradient-to-br from-primary to-purple-400 blur-3xl dark:h-96 animate-float"></div>
+            <div className="h-60 bg-gradient-to-r from-accent to-cyan-400 blur-3xl dark:h-96 animate-float" style={{ animationDelay: '3s' }}></div>
           </div>
-          <div className="container relative z-10 text-center">
+          <div className="container relative z-10 flex flex-col items-center">
+            <div className="mb-8">
+              <Logo />
+            </div>
             <h1 className="text-4xl font-extrabold tracking-tight md:text-5xl">
               Your notes, memories, and files,
               <br />
@@ -110,10 +113,10 @@ export default function Home() {
       </main>
 
       <footer className="border-t">
-        <div className="container flex flex-col items-center justify-between gap-4 py-10 md:h-24 md:flex-row md:py-0">
-          <div className="flex flex-col items-center gap-4 px-8 md:flex-row md:gap-2 md:px-0">
+        <div className="container flex flex-col items-center justify-center gap-4 py-10 md:h-24 md:flex-col md:py-0">
+          <div className="flex flex-col items-center gap-4 px-8 md:px-0">
             <Logo />
-            <p className="text-center text-sm leading-loose text-muted-foreground md:text-left">
+            <p className="text-center text-sm leading-loose text-muted-foreground">
               © 2025 MemoDams. Built by Ayoola Damisile.
             </p>
           </div>
