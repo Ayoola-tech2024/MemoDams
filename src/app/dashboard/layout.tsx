@@ -28,7 +28,6 @@ import {
   Menu,
   Search,
   Settings,
-  Shield,
   User,
   Video,
 } from 'lucide-react';
@@ -37,7 +36,7 @@ import { Logo } from '@/components/logo';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { useAuth, useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { signOut } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 
@@ -47,10 +46,6 @@ const navItems = [
   { href: '/dashboard/photos', icon: ImageIcon, label: 'Photos' },
   { href: '/dashboard/videos', icon: Video, label: 'Videos' },
   { href: '/dashboard/files', icon: FileArchive, label: 'Files' },
-];
-
-const adminNavItems = [
-  { href: '/dashboard/admin', icon: Shield, label: 'Admin' },
 ];
 
 function NavLink({ href, icon: Icon, label }: { href: string; icon: React.ElementType; label: string }) {
@@ -74,18 +69,10 @@ export default function DashboardLayout({
   const auth = useAuth();
   const router = useRouter();
   const { toast } = useToast();
-  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     if (!isUserLoading && !user) {
       router.push('/login');
-    }
-    if (user) {
-        user.getIdTokenResult(true).then(idTokenResult => {
-            if (idTokenResult.claims.admin === true || user.email === 'damisileayoola@gmail.com') {
-                setIsAdmin(true);
-            }
-        });
     }
   }, [user, isUserLoading, router]);
 
@@ -123,9 +110,6 @@ export default function DashboardLayout({
               {navItems.map((item) => (
                 <NavLink key={item.href} {...item} />
               ))}
-              {isAdmin && adminNavItems.map((item) => (
-                <NavLink key={item.href} {...item} />
-              ))}
             </nav>
           </div>
         </div>
@@ -151,9 +135,6 @@ export default function DashboardLayout({
               </SheetHeader>
               <nav className="grid gap-2 text-lg font-medium mt-4">
                 {navItems.map((item) => (
-                  <NavLink key={item.href} {...item} />
-                ))}
-                 {isAdmin && adminNavItems.map((item) => (
                   <NavLink key={item.href} {...item} />
                 ))}
               </nav>
