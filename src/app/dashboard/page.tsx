@@ -8,19 +8,81 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { BookText, FileArchive, Image as ImageIcon, Video, ArrowRight } from "lucide-react"
+import { BookText, FileArchive, Image as ImageIcon, Video, ArrowRight, NotebookPen } from "lucide-react"
 import Link from 'next/link'
-import { useUser } from "@/firebase"
+import { useCollection, useFirestore, useUser, useMemoFirebase } from "@/firebase"
+import { collection, query, where, orderBy, getCountFromServer } from "firebase/firestore"
+import { useEffect, useState } from "react"
+import { Skeleton } from "@/components/ui/skeleton"
 
-const overviewItems = [
-  { title: "Notes", count: 12, icon: BookText, href: "/dashboard/notes" },
-  { title: "Photos", count: 87, icon: ImageIcon, href: "/dashboard/photos" },
-  { title: "Videos", count: 8, icon: Video, href: "/dashboard/videos" },
-  { title: "Files", count: 23, icon: FileArchive, href: "/dashboard/files" },
-]
+interface OverviewItemProps {
+  title: string;
+  icon: React.ElementType;
+  href: string;
+  count: number;
+  isLoading: boolean;
+}
+
+function OverviewCard({ title, icon: Icon, href, count, isLoading }: OverviewItemProps) {
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        <Icon className="h-4 w-4 text-muted-foreground" />
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <Skeleton className="h-8 w-1/3" />
+        ) : (
+          <div className="text-2xl font-bold">{count}</div>
+        )}
+        <Link href={href} className="text-xs text-muted-foreground flex items-center hover:text-primary">
+          View all <ArrowRight className="ml-1 h-3 w-3" />
+        </Link>
+      </CardContent>
+    </Card>
+  )
+}
+
 
 export default function DashboardPage() {
   const { user } = useUser()
+  const firestore = useFirestore()
+
+  const notesQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return query(collection(firestore, 'users', user.uid, 'notes'), orderBy("createdAt", "desc"));
+  }, [user, firestore]);
+  const { data: notes, isLoading: isLoadingNotes } = useCollection(notesQuery);
+
+  const photosQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return query(collection(firestore, 'users', user.uid, 'files'), where("fileType", ">=", "image/"), where("fileType", "<", "image/~"));
+  }, [user, firestore]);
+  const { data: photos, isLoading: isLoadingPhotos } = useCollection(photosQuery);
+  
+  const videosQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return query(collection(firestore, 'users', user.uid, 'files'), where("fileType", ">=", "video/"), where("fileType", "<", "video/~"));
+  }, [user, firestore]);
+  const { data: videos, isLoading: isLoadingVideos } = useCollection(videosQuery);
+
+  const filesQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return query(collection(firestore, 'users', user.uid, 'files'));
+  }, [user, firestore]);
+  const { data: files, isLoading: isLoadingFiles } = useCollection(filesQuery);
+
+  const recentNotes = notes?.slice(0, 2) || [];
+
+  const recentUploads = files?.slice(0, 2) || [];
+  
+  const overviewItems = [
+    { title: "Notes", count: notes?.length ?? 0, icon: BookText, href: "/dashboard/notes", isLoading: isLoadingNotes },
+    { title: "Photos", count: photos?.length ?? 0, icon: ImageIcon, href: "/dashboard/photos", isLoading: isLoadingPhotos },
+    { title: "Videos", count: videos?.length ?? 0, icon: Video, href: "/dashboard/videos", isLoading: isLoadingVideos },
+    { title: "Files", count: files?.length ?? 0, icon: FileArchive, href: "/dashboard/files", isLoading: isLoadingFiles },
+  ]
 
   return (
     <>
@@ -36,20 +98,7 @@ export default function DashboardPage() {
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {overviewItems.map((item) => (
-          <Card key={item.title}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                {item.title}
-              </CardTitle>
-              <item.icon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{item.count}</div>
-              <Link href={item.href} className="text-xs text-muted-foreground flex items-center hover:text-primary">
-                View all <ArrowRight className="ml-1 h-3 w-3" />
-              </Link>
-            </CardContent>
-          </Card>
+          <OverviewCard key={item.title} {...item} />
         ))}
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
@@ -61,27 +110,44 @@ export default function DashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {/* Placeholder for recent notes list */}
-            <div className="space-y-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-semibold">Project MemoDam Launch</h3>
-                  <p className="text-sm text-muted-foreground line-clamp-1">Final preparations for the big day...</p>
+            {isLoadingNotes ? (
+              <div className="space-y-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <Skeleton className="h-5 w-48 mb-2" />
+                    <Skeleton className="h-4 w-64" />
+                  </div>
+                  <Skeleton className="h-8 w-16" />
                 </div>
-                <Button variant="ghost" size="sm" asChild>
-                  <Link href="#">View</Link>
-                </Button>
-              </div>
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-semibold">Grocery List</h3>
-                  <p className="text-sm text-muted-foreground line-clamp-1">Milk, Bread, Coffee, and that one thing I always forget.</p>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <Skeleton className="h-5 w-40 mb-2" />
+                    <Skeleton className="h-4 w-56" />
+                  </div>
+                  <Skeleton className="h-8 w-16" />
                 </div>
-                <Button variant="ghost" size="sm" asChild>
-                  <Link href="#">View</Link>
-                </Button>
               </div>
-            </div>
+            ) : recentNotes.length > 0 ? (
+               <div className="space-y-4">
+                {recentNotes.map(note => (
+                   <div key={note.id} className="flex items-start justify-between">
+                    <div>
+                      <h3 className="font-semibold">{note.title}</h3>
+                      <p className="text-sm text-muted-foreground line-clamp-1">{note.content}</p>
+                    </div>
+                    <Button variant="ghost" size="sm" asChild>
+                      <Link href={`/dashboard/notes/${note.id}`}>View</Link>
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+               <div className="flex flex-col items-center justify-center text-center py-8">
+                  <NotebookPen className="h-10 w-10 text-muted-foreground mb-3" />
+                  <h3 className="text-lg font-semibold">No recent notes</h3>
+                  <p className="text-sm text-muted-foreground">Your latest notes will appear here.</p>
+              </div>
+            )}
           </CardContent>
         </Card>
         <Card className="col-span-4 lg:col-span-3">
@@ -92,27 +158,44 @@ export default function DashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {/* Placeholder for recent uploads */}
-             <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="rounded-md bg-secondary p-3">
-                  <ImageIcon className="h-5 w-5 text-muted-foreground" />
+            {isLoadingFiles ? (
+               <div className="space-y-4">
+                  <div className="flex items-center gap-4">
+                     <Skeleton className="h-12 w-12 rounded-md" />
+                     <div className="space-y-2">
+                       <Skeleton className="h-4 w-32" />
+                       <Skeleton className="h-4 w-24" />
+                     </div>
+                  </div>
+                   <div className="flex items-center gap-4">
+                     <Skeleton className="h-12 w-12 rounded-md" />
+                     <div className="space-y-2">
+                       <Skeleton className="h-4 w-32" />
+                       <Skeleton className="h-4 w-24" />
+                     </div>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-medium leading-none">vacation_photo_01.jpg</p>
-                  <p className="text-sm text-muted-foreground">Uploaded 2 hours ago</p>
-                </div>
+            ) : recentUploads.length > 0 ? (
+               <div className="space-y-4">
+                {recentUploads.map(file => (
+                  <div key={file.id} className="flex items-center gap-4">
+                    <div className="rounded-md bg-secondary p-3">
+                      {file.fileType.startsWith('image/') ? <ImageIcon className="h-5 w-5 text-muted-foreground" /> : <FileArchive className="h-5 w-5 text-muted-foreground" />}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium leading-none truncate">{file.name}</p>
+                      <p className="text-sm text-muted-foreground">Uploaded recently</p>
+                    </div>
+                  </div>
+                ))}
               </div>
-               <div className="flex items-center gap-4">
-                <div className="rounded-md bg-secondary p-3">
-                  <FileArchive className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium leading-none">annual_report.pdf</p>
-                  <p className="text-sm text-muted-foreground">Uploaded yesterday</p>
-                </div>
+            ) : (
+               <div className="flex flex-col items-center justify-center text-center py-8">
+                  <FileArchive className="h-10 w-10 text-muted-foreground mb-3" />
+                  <h3 className="text-lg font-semibold">No recent uploads</h3>
+                  <p className="text-sm text-muted-foreground">Your latest files will appear here.</p>
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>
