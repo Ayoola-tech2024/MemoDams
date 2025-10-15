@@ -110,6 +110,23 @@ export default function Home() {
             </div>
           </div>
         </section>
+
+         <section className="py-20 md:py-28">
+          <div className="container text-center">
+             <h2 className="text-3xl font-bold md:text-4xl">Ready to Secure Your Digital Life?</h2>
+             <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
+                Join thousands of users who trust MemoDams to keep their notes, memories, and files safe.
+                Sign up today and experience the peace of mind that comes with a secure, all-in-one digital vault.
+            </p>
+            <div className="mt-8">
+                <Button size="lg" asChild>
+                    <Link href="/signup">
+                        Sign Up Now <ArrowRight className="ml-2 h-5 w-5" />
+                    </Link>
+                </Button>
+            </div>
+          </div>
+        </section>
       </main>
 
       <footer className="border-t">
