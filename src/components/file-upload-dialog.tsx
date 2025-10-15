@@ -14,7 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { useUser, useFirestore } from "@/firebase";
+import { useUser, useFirestore, FirestorePermissionError, errorEmitter } from "@/firebase";
 import { getStorage, ref, uploadBytesResumable, getDownloadURL, type UploadTask } from "firebase/storage";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
@@ -59,7 +59,8 @@ export function FileUploadDialog({ trigger, fileTypes }: FileUploadDialogProps) 
     setUploadProgress(0);
 
     const storage = getStorage();
-    const storageRef = ref(storage, `users/${user.uid}/files/${Date.now()}_${file.name}`);
+    const filePath = `users/${user.uid}/files/${Date.now()}_${file.name}`;
+    const storageRef = ref(storage, filePath);
     const task = uploadBytesResumable(storageRef, file);
     setUploadTask(task);
 
@@ -81,11 +82,12 @@ export function FileUploadDialog({ trigger, fileTypes }: FileUploadDialogProps) 
           handleClose();
         } else {
             console.error("Upload failed:", error);
-            toast({
-              variant: "destructive",
-              title: "Upload Failed",
-              description: "You do not have permission to upload files. Please check storage rules.",
+            // Propagate the permission error for detailed debugging
+            const permissionError = new FirestorePermissionError({
+                path: filePath,
+                operation: 'write', // 'write' is the equivalent for storage uploads
             });
+            errorEmitter.emit('permission-error', permissionError);
         }
       },
       async () => {
@@ -114,11 +116,11 @@ export function FileUploadDialog({ trigger, fileTypes }: FileUploadDialogProps) 
 
         } catch (firestoreError: any) {
              console.error("Firestore write failed:", firestoreError);
-             toast({
-                variant: "destructive",
-                title: "Failed to save file metadata",
-                description: "The file was uploaded, but we couldn't save its details. Check Firestore rules."
+             const permissionError = new FirestorePermissionError({
+                path: `users/${user.uid}/files`,
+                operation: 'create',
              });
+             errorEmitter.emit('permission-error', permissionError);
              setIsUploading(false);
              setUploadTask(null);
         }
@@ -148,6 +150,9 @@ export function FileUploadDialog({ trigger, fileTypes }: FileUploadDialogProps) 
   const onDialogOpenChange = (isOpen: boolean) => {
     if (isUploading) return;
     setOpen(isOpen);
+    if (!isOpen) {
+        handleClose();
+    }
   }
 
   return (
