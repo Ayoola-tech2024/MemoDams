@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { useUser, useFirestore } from "@/firebase";
-import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
+import { getStorage, ref, uploadBytesResumable, getDownloadURL, type UploadTask } from "firebase/storage";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { UploadCloud, File as FileIcon, X } from "lucide-react";
@@ -31,6 +31,7 @@ export function FileUploadDialog({ trigger, fileTypes }: FileUploadDialogProps) 
   const [file, setFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadTask, setUploadTask] = useState<UploadTask | null>(null);
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -59,25 +60,36 @@ export function FileUploadDialog({ trigger, fileTypes }: FileUploadDialogProps) 
 
     const storage = getStorage();
     const storageRef = ref(storage, `users/${user.uid}/files/${Date.now()}_${file.name}`);
-    const uploadTask = uploadBytesResumable(storageRef, file);
+    const task = uploadBytesResumable(storageRef, file);
+    setUploadTask(task);
 
-    uploadTask.on(
+    task.on(
       "state_changed",
       (snapshot) => {
         const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
         setUploadProgress(progress);
       },
       (error) => {
-        console.error("Upload failed:", error);
-        toast({
-          variant: "destructive",
-          title: "Upload Failed",
-          description: "You do not have permission to upload files. Please check storage rules.",
-        });
         setIsUploading(false);
+        setUploadTask(null);
+
+        if (error.code === 'storage/canceled') {
+          toast({
+            title: "Upload Canceled",
+            description: "Your file upload has been canceled.",
+          });
+          handleClose();
+        } else {
+            console.error("Upload failed:", error);
+            toast({
+              variant: "destructive",
+              title: "Upload Failed",
+              description: "You do not have permission to upload files. Please check storage rules.",
+            });
+        }
       },
       async () => {
-        const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+        const downloadURL = await getDownloadURL(task.snapshot.ref);
         
         try {
           await addDoc(collection(firestore, "users", user.uid, "files"), {
@@ -108,9 +120,18 @@ export function FileUploadDialog({ trigger, fileTypes }: FileUploadDialogProps) 
                 description: "The file was uploaded, but we couldn't save its details. Check Firestore rules."
              });
              setIsUploading(false);
+             setUploadTask(null);
         }
       }
     );
+  };
+  
+  const handleCancelUpload = () => {
+    if (uploadTask) {
+      uploadTask.cancel();
+    } else {
+       handleClose();
+    }
   };
 
   const handleClose = () => {
@@ -120,6 +141,7 @@ export function FileUploadDialog({ trigger, fileTypes }: FileUploadDialogProps) 
         setFile(null);
         setUploadProgress(0);
         setIsUploading(false);
+        setUploadTask(null);
     }, 300);
   };
   
@@ -191,8 +213,8 @@ export function FileUploadDialog({ trigger, fileTypes }: FileUploadDialogProps) 
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={isUploading}>
-            Cancel
+          <Button variant="outline" onClick={handleCancelUpload}>
+            {isUploading ? "Cancel Upload" : "Cancel"}
           </Button>
           <Button onClick={handleUpload} disabled={!file || isUploading || isPending}>
             {isUploading ? "Uploading..." : "Upload"}
