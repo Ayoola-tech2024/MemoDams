@@ -178,6 +178,13 @@
       "password",
       "anonymous",
       "google.com"
+    ],
+    "customClaims": [
+      {
+        "name": "admin",
+        "type": "boolean",
+        "description": "Grants administrative privileges across the application, allowing access to special admin-only sections and features."
+      }
     ]
   },
   "firestore": {

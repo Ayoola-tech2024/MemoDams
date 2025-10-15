@@ -1,128 +1,34 @@
-/**
- * @fileOverview Firestore Security Rules for MemoDams application.
- *
- * Core Philosophy:
- * This ruleset enforces a strict user-ownership model. Each user has full control over their own data (profile, notes, tags, files),
- * and no access to other users' data. List operation on `/users` is explicitly denied.
- *
- * Data Structure:
- * All user-specific data is nested under /users/{userId}, including notes, tags, and files. This structure simplifies security rules
- * and ensures that only the authenticated user can access their own data.
- *
- * Key Security Decisions:
- * - User listing is disallowed to prevent potential information disclosure.
- * - All write operations are restricted to the owner of the data.
- * - Read operations (get, list) are restricted to the owner of the data.
- *
- * Authorization Independence:
- * To avoid costly `get()` calls, authorization checks are performed directly on the path. For example, when accessing
- * `/users/{userId}/notes/{noteId}`, the rule verifies that `request.auth.uid == userId`.
- */
+
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    /**
-     * @description Protects the /users collection, ensuring only authenticated users can read their profile. Disallows listing all users.
-     * @path /users/{userId}
-     * @allow (get) User with UID 'ENWfJhL1DWTJft1Poi7loK4qCCi1' can read their own profile.
-     * @deny (get) User with UID 'OTHER_UID' cannot read another user's profile.
-     * @allow (create) User with UID 'ENWfJhL1DWTJft1Poi7loK4qCCi1' can create their own profile.
-     * @deny (create) User with UID 'OTHER_UID' cannot create a profile with a different user ID.
-     * @allow (update) User with UID 'ENWfJhL1DWTJft1Poi7loK4qCCi1' can update their own profile.
-     * @deny (update) User with UID 'OTHER_UID' cannot update another user's profile.
-     * @allow (delete) User with UID 'ENWfJhL1DWTJft1Poi7loK4qCCi1' can delete their own profile.
-     * @deny (delete) User with UID 'OTHER_UID' cannot delete another user's profile.
-     * @deny (list) Any user cannot list all users.
-     * @principle Enforces document ownership for all operations on user profiles.
-     */
+    // Helper function to check if the user is an admin
+    function isAdmin() {
+      return request.auth.token.admin == true || request.auth.token.email == 'damisileayoola@gmail.com';
+    }
+
+    // Rules for the 'users' collection
     match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
-      allow delete: if isExistingOwner(userId);
+      // Admins can read the entire collection.
+      // Regular users can only read their own document.
+      allow read: if isAdmin() || request.auth.uid == userId;
+
+      // Users can only create their own document.
+      allow create: if request.auth.uid == userId;
+
+      // Users can only update their own document.
+      allow update: if request.auth.uid == userId;
+
+      // Users cannot delete their own user document.
+      allow delete: if false;
     }
 
-    /**
-     * @description Protects the /users/{userId}/notes collection, ensuring only the owner can read and write notes.
-     * @path /users/{userId}/notes/{noteId}
-     * @allow (get) User with UID 'ENWfJhL1DWTJft1Poi7loK4qCCi1' can read their own note.
-     * @deny (get) User with UID 'OTHER_UID' cannot read another user's note.
-     * @allow (create) User with UID 'ENWfJhL1DWTJft1Poi7loK4qCCi1' can create a note under their own user ID.
-     * @deny (create) User with UID 'OTHER_UID' cannot create a note under a different user ID.
-     * @allow (update) User with UID 'ENWfJhL1DWTJft1Poi7loK4qCCi1' can update their own note.
-     * @deny (update) User with UID 'OTHER_UID' cannot update another user's note.
-     * @allow (delete) User with UID 'ENWfJhL1DWTJft1Poi7loK4qCCi1' can delete their own note.
-     * @deny (delete) User with UID 'OTHER_UID' cannot delete another user's note.
-     * @allow (list) User with UID 'ENWfJhL1DWTJft1Poi7loK4qCCi1' can list their own notes.
-     * @deny (list) User with UID 'OTHER_UID' cannot list another user's notes.
-     * @principle Enforces document ownership for all operations on notes.
-     */
-    match /users/{userId}/notes/{noteId} {
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-      allow delete: if isExistingOwner(userId);
-    }
-
-    /**
-     * @description Protects the /users/{userId}/tags collection, ensuring only the owner can read and write tags.
-     * @path /users/{userId}/tags/{tagId}
-     * @allow (get) User with UID 'ENWfJhL1DWTJft1Poi7loK4qCCi1' can read their own tag.
-     * @deny (get) User with UID 'OTHER_UID' cannot read another user's tag.
-     * @allow (create) User with UID 'ENWfJhL1DWTJft1Poi7loK4qCCi1' can create a tag under their own user ID.
-     * @deny (create) User with UID 'OTHER_UID' cannot create a tag under a different user ID.
-     * @allow (update) User with UID 'ENWfJhL1DWTJft1Poi7loK4qCCi1' can update their own tag.
-     * @deny (update) User with UID 'OTHER_UID' cannot update another user's tag.
-     * @allow (delete) User with UID 'ENWfJhL1DWTJft1Poi7loK4qCCi1' can delete their own tag.
-     * @deny (delete) User with UID 'OTHER_UID' cannot delete another user's tag.
-     * @allow (list) User with UID 'ENWfJhL1DWTJft1Poi7loK4qCCi1' can list their own tags.
-     * @deny (list) User with UID 'OTHER_UID' cannot list another user's tags.
-     * @principle Enforces document ownership for all operations on tags.
-     */
-    match /users/{userId}/tags/{tagId} {
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-      allow delete: if isExistingOwner(userId);
-    }
-
-    /**
-     * @description Protects the /users/{userId}/files collection, ensuring only the owner can read and write files.
-     * @path /users/{userId}/files/{fileId}
-     * @allow (get) User with UID 'ENWfJhL1DWTJft1Poi7loK4qCCi1' can read their own file.
-     * @deny (get) User with UID 'OTHER_UID' cannot read another user's file.
-     * @allow (create) User with UID 'ENWfJhL1DWTJft1Poi7loK4qCCi1' can create a file under their own user ID.
-     * @deny (create) User with UID 'OTHER_UID' cannot create a file under a different user ID.
-     * @allow (update) User with UID 'ENWfJhL1DWTJft1Poi7loK4qCCi1' can update their own file.
-     * @deny (update) User with UID 'OTHER_UID' cannot update another user's file.
-     * @allow (delete) User with UID 'ENWfJhL1DWTJft1Poi7loK4qCCi1' can delete their own file.
-     * @deny (delete) User with UID 'OTHER_UID' cannot delete another user's file.
-     * @allow (list) User with UID 'ENWfJhL1DWTJft1Poi7loK4qCCi1' can list their own files.
-     * @deny (list) User with UID 'OTHER_UID' cannot list another user's files.
-     * @principle Enforces document ownership for all operations on files.
-     */
-    match /users/{userId}/files/{fileId} {
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-      allow delete: if isExistingOwner(userId);
-    }
-
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    function isExistingOwner(userId) {
-      return isOwner(userId) && resource != null;
+    // Rules for nested collections (notes, tags, files)
+    match /users/{userId}/{collection}/{docId} {
+      // A user can perform any action on documents within their own nested collections.
+      allow read, write: if request.auth.uid == userId;
     }
   }
 }
