@@ -1,121 +1,119 @@
+/**
+ * @fileoverview Firestore Security Rules for MemoDams application.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model where each user has exclusive access to their own data, including profile information, notes, tags, and files.
+ *
+ * Data Structure:
+ * All user-related data is nested under the /users/{userId} path, ensuring data isolation. Notes, tags, and files are stored in subcollections under each user's document.
+ *
+ * Key Security Decisions:
+ * - Only authenticated users can access their own data.
+ * - Users can only create their own user document.
+ * - List operations are restricted to the owner of the collection.
+ *
+ * Denormalization for Authorization:
+ *  The rules rely on path-based authorization, where the {userId} path segment is matched against the request.auth.uid.  This avoids costly `get()` calls.
+ */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Controls access to user profile information.
+     * @description Grants access to user documents based on ownership.
      * @path /users/{userId}
-     * @allow (create) - Authenticated user can create their own profile if the userId matches their auth UID.
-     * @allow (get, list, update, delete) - Authenticated user can get, list, update, or delete their profile if the userId matches their auth UID.
-     * @deny (create) - An unauthenticated user cannot create a profile.
-     * @deny (update, delete) - A different authenticated user cannot update or delete another user's profile.
-     * @principle Enforces document ownership for all operations.
+     * @allow (create) - User with UID 'user_abc' can create their own profile if request.auth.uid == 'user_abc'.
+     * @allow (get) - User with UID 'user_abc' can read their own profile.
+     * @allow (update) - User with UID 'user_abc' can update their own profile.
+     * @allow (delete) - User with UID 'user_abc' can delete their own profile.
+     * @deny (create) - User with UID 'user_xyz' cannot create a profile for 'user_abc'.
+     * @deny (get) - User with UID 'user_xyz' cannot read the profile of 'user_abc'.
+     * @deny (update) - User with UID 'user_xyz' cannot update the profile of 'user_abc'.
+     * @deny (delete) - User with UID 'user_xyz' cannot delete the profile of 'user_abc'.
+     * @principle Enforces document ownership for all operations on user profiles.
      */
     match /users/{userId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isExistingOwner(userId);
-      allow delete: if isSignedIn() && isExistingOwner(userId);
+      allow get: if isOwner(userId);
+      allow list: if false; // User listing is not allowed.
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Controls access to notes created by a specific user.
+     * @description Grants access to notes based on ownership.
      * @path /users/{userId}/notes/{noteId}
-     * @allow (create) - Authenticated user can create a note under their own userId.
-     * @allow (get, list, update, delete) - Authenticated user can get, list, update, or delete a note under their own userId.
-     * @deny (create) - An unauthenticated user cannot create a note.
-     * @deny (update, delete) - A different authenticated user cannot update or delete another user's note.
+     * @allow (create) - User with UID 'user_abc' can create a note under their profile if request.auth.uid == 'user_abc'.
+     * @allow (get) - User with UID 'user_abc' can read a note under their profile.
+     * @allow (update) - User with UID 'user_abc' can update a note under their profile.
+     * @allow (delete) - User with UID 'user_abc' can delete a note under their profile.
+     * @deny (create) - User with UID 'user_xyz' cannot create a note under the profile of 'user_abc'.
+     * @deny (get) - User with UID 'user_xyz' cannot read a note under the profile of 'user_abc'.
+     * @deny (update) - User with UID 'user_xyz' cannot update a note under the profile of 'user_abc'.
+     * @deny (delete) - User with UID 'user_xyz' cannot delete a note under the profile of 'user_abc'.
      * @principle Enforces document ownership for all operations on notes.
      */
     match /users/{userId}/notes/{noteId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-       function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isExistingOwner(userId);
-      allow delete: if isSignedIn() && isExistingOwner(userId);
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && resource.data.userId == userId;
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Controls access to tags created by a specific user.
+     * @description Grants access to tags based on ownership.
      * @path /users/{userId}/tags/{tagId}
-     * @allow (create) - Authenticated user can create a tag under their own userId.
-     * @allow (get, list, update, delete) - Authenticated user can get, list, update, or delete a tag under their own userId.
-     * @deny (create) - An unauthenticated user cannot create a tag.
-     * @deny (update, delete) - A different authenticated user cannot update or delete another user's tag.
+     * @allow (create) - User with UID 'user_abc' can create a tag under their profile if request.auth.uid == 'user_abc'.
+     * @allow (get) - User with UID 'user_abc' can read a tag under their profile.
+     * @allow (update) - User with UID 'user_abc' can update a tag under their profile.
+     * @allow (delete) - User with UID 'user_abc' can delete a tag under their profile.
+     * @deny (create) - User with UID 'user_xyz' cannot create a tag under the profile of 'user_abc'.
+     * @deny (get) - User with UID 'user_xyz' cannot read a tag under the profile of 'user_abc'.
+     * @deny (update) - User with UID 'user_xyz' cannot update a tag under the profile of 'user_abc'.
+     * @deny (delete) - User with UID 'user_xyz' cannot delete a tag under the profile of 'user_abc'.
      * @principle Enforces document ownership for all operations on tags.
      */
     match /users/{userId}/tags/{tagId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isExistingOwner(userId);
-      allow delete: if isSignedIn() && isExistingOwner(userId);
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && resource.data.userId == userId;
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Controls access to files uploaded by a specific user.
+     * @description Grants access to files based on ownership.
      * @path /users/{userId}/files/{fileId}
-     * @allow (create) - Authenticated user can create a file under their own userId.
-     * @allow (get, list, update, delete) - Authenticated user can get, list, update, or delete a file under their own userId.
-     * @deny (create) - An unauthenticated user cannot create a file.
-     * @deny (update, delete) - A different authenticated user cannot update or delete another user's file.
+     * @allow (create) - User with UID 'user_abc' can create a file under their profile if request.auth.uid == 'user_abc'.
+     * @allow (get) - User with UID 'user_abc' can read a file under their profile.
+     * @allow (update) - User with UID 'user_abc' can update a file under their profile.
+     * @allow (delete) - User with UID 'user_abc' can delete a file under their profile.
+     * @deny (create) - User with UID 'user_xyz' cannot create a file under the profile of 'user_abc'.
+     * @deny (get) - User with UID 'user_xyz' cannot read a file under the profile of 'user_abc'.
+     * @deny (update) - User with UID 'user_xyz' cannot update a file under the profile of 'user_abc'.
+     * @deny (delete) - User with UID 'user_xyz' cannot delete a file under the profile of 'user_abc'.
      * @principle Enforces document ownership for all operations on files.
      */
     match /users/{userId}/files/{fileId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isExistingOwner(userId);
-      allow delete: if isSignedIn() && isExistingOwner(userId);
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && resource.data.userId == userId;
+      allow delete: if isExistingOwner(userId);
     }
+  }
+
+  // Helper functions
+  function isSignedIn() {
+    return request.auth != null;
+  }
+
+  function isOwner(userId) {
+    return isSignedIn() && request.auth.uid == userId;
+  }
+
+  function isExistingOwner(userId) {
+    return isOwner(userId) && resource != null;
   }
 }

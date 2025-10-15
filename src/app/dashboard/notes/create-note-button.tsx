@@ -52,17 +52,16 @@ export function CreateNoteButton() {
       return;
     }
 
-    const notesCollection = collection(firestore, 'users', user.uid, 'notes');
-    const noteData = {
-      ...values,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-      userId: user.uid,
-      tagIds: [],
-    };
-
     try {
-      await addDoc(notesCollection, noteData);
+      const notesCollection = collection(firestore, 'users', user.uid, 'notes');
+      await addDoc(notesCollection, {
+        ...values,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        userId: user.uid,
+        tagIds: [],
+      });
+
       toast({
         title: "Note Created",
         description: "Your new note has been saved successfully.",
@@ -74,7 +73,7 @@ export function CreateNoteButton() {
       toast({
         variant: "destructive",
         title: "Permission Denied",
-        description: "You do not have permission to create notes. Please contact support.",
+        description: "You do not have permission to create notes. Please check your Firestore security rules.",
       });
     }
   }
