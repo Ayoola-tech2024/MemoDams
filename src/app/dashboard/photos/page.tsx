@@ -1,7 +1,8 @@
+
 "use client";
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { PlusCircle, MoreVertical, Download, Trash2, Pencil, Image as ImageIcon } from "lucide-react"
 import Image from "next/image"
 import {
@@ -14,11 +15,13 @@ import { useCollection, useFirestore, useUser, useMemoFirebase } from "@/firebas
 import { collection, query, where, orderBy } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FileUploadDialog } from "@/components/file-upload-dialog";
+import { format } from "date-fns";
 
 interface Photo {
   id: string;
   name: string;
   url: string;
+  uploadDate: { seconds: number; nanoseconds: number; };
 }
 
 function PhotoSkeleton() {
@@ -70,7 +73,7 @@ export default function PhotosPage() {
       {!isLoading && photos && photos.length > 0 && (
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {photos.map((photo) => (
-            <Card key={photo.id} className="group relative overflow-hidden">
+            <Card key={photo.id} className="group relative overflow-hidden flex flex-col">
               <CardContent className="p-0">
                 <Image
                   src={photo.url}
@@ -80,6 +83,14 @@ export default function PhotosPage() {
                   className="aspect-[4/3] w-full object-cover transition-transform duration-300 group-hover:scale-105"
                 />
               </CardContent>
+              <CardFooter className="p-2 mt-auto bg-background/80 backdrop-blur-sm">
+                <div className="truncate">
+                    <p className="text-sm font-medium truncate">{photo.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                        {photo.uploadDate ? format(new Date(photo.uploadDate.seconds * 1000), "PP") : 'No date'}
+                    </p>
+                </div>
+              </CardFooter>
               <div className="absolute top-2 right-2 opacity-0 transition-opacity group-hover:opacity-100">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>

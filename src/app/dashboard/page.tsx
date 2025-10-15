@@ -26,29 +26,42 @@ interface OverviewItemProps {
 
 function OverviewCard({ title, icon: Icon, href, count, isLoading }: OverviewItemProps) {
   return (
-    <Card className="transform-gpu transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/20">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <Icon className="h-4 w-4 text-muted-foreground" />
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <Skeleton className="h-8 w-1/3" />
-        ) : (
-          <div className="text-2xl font-bold">{count}</div>
-        )}
-        <Link href={href} className="text-xs text-muted-foreground flex items-center hover:text-primary">
-          View all <ArrowRight className="ml-1 h-3 w-3" />
-        </Link>
-      </CardContent>
-    </Card>
+    <Link href={href} className="block">
+      <Card className="transform-gpu transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/20 h-full">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">{title}</CardTitle>
+          <Icon className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <Skeleton className="h-8 w-1/3" />
+          ) : (
+            <div className="text-2xl font-bold">{count}</div>
+          )}
+          <p className="text-xs text-muted-foreground flex items-center">
+            View all <ArrowRight className="ml-1 h-3 w-3" />
+          </p>
+        </CardContent>
+      </Card>
+    </Link>
   )
 }
 
+function getGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return { text: "Good morning", emoji: "☀️" };
+  if (hour < 18) return { text: "Good afternoon", emoji: "👋" };
+  return { text: "Good evening", emoji: "🌙" };
+}
 
 export default function DashboardPage() {
   const { user } = useUser()
   const firestore = useFirestore()
+  const [greeting, setGreeting] = useState({ text: "", emoji: "" });
+
+  useEffect(() => {
+    setGreeting(getGreeting());
+  }, []);
 
   const notesQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
@@ -76,7 +89,7 @@ export default function DashboardPage() {
 
   const recentNotes = notes?.slice(0, 2) || [];
 
-  const recentUploads = files?.slice(0, 2) || [];
+  const recentUploads = files?.sort((a, b) => b.uploadDate.seconds - a.uploadDate.seconds).slice(0, 2) || [];
   
   const overviewItems = [
     { title: "Notes", count: notes?.length ?? 0, icon: BookText, href: "/dashboard/notes", isLoading: isLoadingNotes },
@@ -90,10 +103,10 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between">
         <div className="grid gap-1">
           <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
-            Welcome back, {user?.displayName?.split(' ')[0] || 'friend'}!
+            {greeting.text}, {user?.displayName?.split(' ')[0] || 'friend'}! {greeting.emoji}
           </h1>
           <p className="text-muted-foreground">
-            Here's a quick overview of your digital world.
+             Today is {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.
           </p>
         </div>
       </div>
@@ -187,7 +200,9 @@ export default function DashboardPage() {
                     </div>
                     <div>
                       <p className="text-sm font-medium leading-none truncate">{file.name}</p>
-                      <p className="text-sm text-muted-foreground">Uploaded recently</p>
+                       <p className="text-sm text-muted-foreground">
+                        {file.uploadDate ? format(new Date(file.uploadDate.seconds * 1000), "PPp") : 'Uploaded recently'}
+                      </p>
                     </div>
                   </div>
                 ))}

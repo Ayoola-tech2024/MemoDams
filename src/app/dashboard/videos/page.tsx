@@ -1,7 +1,8 @@
+
 "use client";
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { PlusCircle, PlayCircle, MoreVertical, Download, Trash2, Pencil, Video as VideoIcon } from "lucide-react"
 import Image from "next/image"
 import {
@@ -14,6 +15,7 @@ import { useCollection, useFirestore, useUser, useMemoFirebase } from "@/firebas
 import { collection, query, where, orderBy } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FileUploadDialog } from "@/components/file-upload-dialog";
+import { format } from "date-fns";
 
 interface Video {
   id: string;
@@ -21,6 +23,7 @@ interface Video {
   url: string; // URL to the video file
   thumbnailUrl?: string; // URL to a thumbnail image
   duration?: string;
+  uploadDate: { seconds: number; nanoseconds: number; };
 }
 
 function VideoSkeleton() {
@@ -29,6 +32,7 @@ function VideoSkeleton() {
       <Skeleton className="aspect-video w-full" />
       <CardContent className="p-4">
         <Skeleton className="h-5 w-3/4" />
+        <Skeleton className="h-4 w-1/2 mt-2" />
       </CardContent>
     </Card>
   );
@@ -73,19 +77,21 @@ export default function VideosPage() {
       {!isLoading && videos && videos.length > 0 && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {videos.map((video) => (
-            <Card key={video.id} className="group relative overflow-hidden">
+            <Card key={video.id} className="group relative overflow-hidden flex flex-col">
               <CardHeader className="p-0">
                 <div className="relative">
-                  <Image
-                    src={video.thumbnailUrl || `https://picsum.photos/seed/${video.id}/400/225`}
-                    alt={video.name}
-                    width={400}
-                    height={225}
-                    className="aspect-video w-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <PlayCircle className="h-16 w-16 text-white/80" />
-                  </div>
+                   <a href={video.url} target="_blank" rel="noopener noreferrer">
+                    <Image
+                      src={video.thumbnailUrl || `https://picsum.photos/seed/${video.id}/400/225`}
+                      alt={video.name}
+                      width={400}
+                      height={225}
+                      className="aspect-video w-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <PlayCircle className="h-16 w-16 text-white/80" />
+                    </div>
+                  </a>
                   {video.duration && (
                     <div className="absolute bottom-2 right-2 bg-black/50 text-white text-xs px-1.5 py-0.5 rounded-sm">
                       {video.duration}
@@ -93,8 +99,11 @@ export default function VideosPage() {
                   )}
                 </div>
               </CardHeader>
-              <CardContent className="p-4">
+              <CardContent className="p-4 flex-grow">
                 <h3 className="font-semibold truncate">{video.name}</h3>
+                 <p className="text-xs text-muted-foreground">
+                    {video.uploadDate ? format(new Date(video.uploadDate.seconds * 1000), "PP") : 'No date'}
+                </p>
               </CardContent>
               <div className="absolute top-2 right-2 opacity-0 transition-opacity group-hover:opacity-100">
                 <DropdownMenu>

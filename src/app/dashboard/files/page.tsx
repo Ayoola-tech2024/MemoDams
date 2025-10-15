@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Button } from "@/components/ui/button"
@@ -122,7 +123,7 @@ export default function FilesPage() {
                     </TableCell>
                     <TableCell className="hidden md:table-cell">{formatBytes(file.fileSize)}</TableCell>
                     <TableCell className="hidden md:table-cell">
-                      {file.uploadDate ? format(new Date(file.uploadDate.seconds * 1000), "MMMM dd, yyyy") : 'No date'}
+                      {file.uploadDate ? format(new Date(file.uploadDate.seconds * 1000), "PPp") : 'No date'}
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>

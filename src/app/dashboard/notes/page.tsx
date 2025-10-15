@@ -96,7 +96,7 @@ export default function NotesPage() {
               <CardHeader>
                 <CardTitle>{note.title}</CardTitle>
                  <CardDescription>
-                  {note.createdAt ? format(new Date(note.createdAt.seconds * 1000), "MMMM dd, yyyy") : 'No date'}
+                  {note.createdAt ? format(new Date(note.createdAt.seconds * 1000), "PPp") : 'No date'}
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex-grow">
