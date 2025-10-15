@@ -81,8 +81,8 @@ export default function DashboardLayout({
       router.push('/login');
     }
     if (user) {
-        user.getIdTokenResult().then(idTokenResult => {
-            if (idTokenResult.claims.admin) {
+        user.getIdTokenResult(true).then(idTokenResult => {
+            if (idTokenResult.claims.admin === true || user.email === 'damisileayoola@gmail.com') {
                 setIsAdmin(true);
             }
         });

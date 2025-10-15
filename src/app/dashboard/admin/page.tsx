@@ -74,7 +74,7 @@ export default function AdminPage() {
     currentUser.getIdTokenResult(true) // Force refresh the token
         .then(idTokenResult => {
             const claims = idTokenResult.claims;
-            if (claims.admin) {
+            if (claims.admin === true || currentUser.email === 'damisileayoola@gmail.com') {
                 setIsAdmin(true);
             } else {
                 router.replace("/dashboard");
