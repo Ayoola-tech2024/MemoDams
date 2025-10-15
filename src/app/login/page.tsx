@@ -1,9 +1,20 @@
+"use client"
+
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { z } from "zod"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Logo } from "@/components/logo"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { useAuth, useUser } from "@/firebase"
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth"
+import { useEffect } from "react"
+import { useToast } from "@/hooks/use-toast"
 
 function GoogleIcon() {
   return (
@@ -16,7 +27,70 @@ function GoogleIcon() {
   )
 }
 
+const formSchema = z.object({
+  email: z.string().email({ message: "Please enter a valid email." }),
+  password: z.string().min(1, { message: "Password is required." }),
+})
+
 export default function LoginPage() {
+  const router = useRouter()
+  const auth = useAuth()
+  const { user, isUserLoading } = useUser()
+  const { toast } = useToast()
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  })
+
+  useEffect(() => {
+    if (user && !isUserLoading) {
+      router.push("/dashboard")
+    }
+  }, [user, isUserLoading, router])
+
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    try {
+      await signInWithEmailAndPassword(auth, values.email, values.password)
+      toast({ title: "Login Successful", description: "Welcome back!" })
+      router.push("/dashboard")
+    } catch (error: any) {
+      console.error("Login failed:", error)
+      toast({
+        variant: "destructive",
+        title: "Login Failed",
+        description: error.message || "An unexpected error occurred.",
+      })
+    }
+  }
+
+  async function handleGoogleSignIn() {
+    try {
+      const provider = new GoogleAuthProvider()
+      await signInWithPopup(auth, provider)
+      toast({ title: "Login Successful", description: "Welcome back!" })
+      router.push("/dashboard")
+    } catch (error: any) {
+      console.error("Google sign-in failed:", error)
+      toast({
+        variant: "destructive",
+        title: "Google Sign-In Failed",
+        description: error.message || "Could not sign in with Google.",
+      })
+    }
+  }
+
+  if (isUserLoading || user) {
+    return (
+      <div className="flex min-h-screen w-full items-center justify-center bg-background">
+        <p>Loading...</p>
+      </div>
+    )
+  }
+
   return (
     <div className="flex min-h-screen w-full items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
@@ -31,34 +105,51 @@ export default function LoginPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="m@example.com"
-                  required
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem className="grid gap-2">
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input placeholder="m@example.com" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="password">Password</Label>
-                <Input id="password" type="password" required />
-              </div>
-              <Link
-                href="/forgot-password"
-                className="text-center text-sm underline"
-              >
-                Forgot your password?
-              </Link>
-              <Button type="submit" className="w-full">
-                Login
-              </Button>
-              <Button variant="outline" className="w-full">
-                <GoogleIcon />
-                <span className="ml-2">Login with Google</span>
-              </Button>
-            </div>
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem className="grid gap-2">
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <Input type="password" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <div className="text-center text-sm">
+                  <Link
+                    href="/forgot-password"
+                    className="underline"
+                  >
+                    Forgot your password?
+                  </Link>
+                </div>
+                <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+                  {form.formState.isSubmitting ? "Logging in..." : "Login"}
+                </Button>
+                <Button variant="outline" className="w-full" type="button" onClick={handleGoogleSignIn}>
+                  <GoogleIcon />
+                  <span className="ml-2">Login with Google</span>
+                </Button>
+              </form>
+            </Form>
             <div className="mt-4 text-center text-sm">
               Don&apos;t have an account?{" "}
               <Link href="/signup" className="underline">

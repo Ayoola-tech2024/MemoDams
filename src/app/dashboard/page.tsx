@@ -1,3 +1,5 @@
+"use client"
+
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -8,6 +10,7 @@ import {
 } from "@/components/ui/card"
 import { BookText, FileArchive, Image as ImageIcon, Video, ArrowRight } from "lucide-react"
 import Link from 'next/link'
+import { useUser } from "@/firebase"
 
 const overviewItems = [
   { title: "Notes", count: 12, icon: BookText, href: "/dashboard/notes" },
@@ -17,12 +20,14 @@ const overviewItems = [
 ]
 
 export default function DashboardPage() {
+  const { user } = useUser()
+
   return (
     <>
       <div className="flex items-center justify-between">
         <div className="grid gap-1">
           <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
-            Welcome back, Ayoola!
+            Welcome back, {user?.displayName?.split(' ')[0] || 'friend'}!
           </h1>
           <p className="text-muted-foreground">
             Here's a quick overview of your digital world.
