@@ -13,7 +13,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useTheme } from "next-themes"
-import { Sun, Moon, Laptop, User, Trash2 } from "lucide-react"
+import { Sun, Moon, Laptop, User, Trash2, Mail } from "lucide-react"
 import Link from "next/link";
 import {
   AlertDialog,
@@ -99,6 +99,28 @@ export default function SettingsPage() {
                 <User className="mr-2 h-4 w-4" />
                 Go to Profile
               </Link>
+            </Button>
+          </CardFooter>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Support & Feedback</CardTitle>
+            <CardDescription>
+              Encountered a problem or have a suggestion? Let us know.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Your feedback is valuable in helping us improve MemoDams.
+            </p>
+          </CardContent>
+           <CardFooter className="border-t px-6 py-4">
+            <Button asChild variant="outline">
+              <a href="mailto:support@memodams.app?subject=Issue%20Report%20/%20Feedback">
+                <Mail className="mr-2 h-4 w-4" />
+                Report an Issue
+              </a>
             </Button>
           </CardFooter>
         </Card>
