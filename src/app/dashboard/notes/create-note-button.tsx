@@ -22,8 +22,6 @@ import { PlusCircle } from "lucide-react";
 import { useFirestore, useUser } from "@/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
-import { errorEmitter } from "@/firebase/error-emitter";
-import { FirestorePermissionError } from "@/firebase/errors";
 
 const noteSchema = z.object({
   title: z.string().min(1, { message: "Title is required." }),
@@ -59,26 +57,26 @@ export function CreateNoteButton() {
       ...values,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
+      userId: user.uid,
       tagIds: [],
     };
 
-    addDoc(notesCollection, noteData)
-      .then(() => {
-        toast({
-          title: "Note Created",
-          description: "Your new note has been saved successfully.",
-        });
-        form.reset();
-        setOpen(false);
-      })
-      .catch((error) => {
-        const contextualError = new FirestorePermissionError({
-          operation: 'create',
-          path: notesCollection.path,
-          requestResourceData: noteData,
-        });
-        errorEmitter.emit('permission-error', contextualError);
+    try {
+      await addDoc(notesCollection, noteData);
+      toast({
+        title: "Note Created",
+        description: "Your new note has been saved successfully.",
       });
+      form.reset();
+      setOpen(false);
+    } catch (error: any) {
+      console.error("Error creating note: ", error);
+      toast({
+        variant: "destructive",
+        title: "Permission Denied",
+        description: "You do not have permission to create notes. Please contact support.",
+      });
+    }
   }
 
   return (
