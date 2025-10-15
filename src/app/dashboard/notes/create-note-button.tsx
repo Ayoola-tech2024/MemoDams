@@ -19,9 +19,11 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { PlusCircle } from "lucide-react";
-import { useAuth, useFirestore, useUser } from "@/firebase";
+import { useFirestore, useUser } from "@/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
 
 const noteSchema = z.object({
   title: z.string().min(1, { message: "Title is required." }),
@@ -52,29 +54,31 @@ export function CreateNoteButton() {
       return;
     }
 
-    try {
-      const notesCollection = collection(firestore, 'users', user.uid, 'notes');
-      await addDoc(notesCollection, {
-        ...values,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        tagIds: [],
+    const notesCollection = collection(firestore, 'users', user.uid, 'notes');
+    const noteData = {
+      ...values,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      tagIds: [],
+    };
+
+    addDoc(notesCollection, noteData)
+      .then(() => {
+        toast({
+          title: "Note Created",
+          description: "Your new note has been saved successfully.",
+        });
+        form.reset();
+        setOpen(false);
+      })
+      .catch((error) => {
+        const contextualError = new FirestorePermissionError({
+          operation: 'create',
+          path: notesCollection.path,
+          requestResourceData: noteData,
+        });
+        errorEmitter.emit('permission-error', contextualError);
       });
-      
-      toast({
-        title: "Note Created",
-        description: "Your new note has been saved successfully.",
-      });
-      form.reset();
-      setOpen(false);
-    } catch (error: any) {
-      console.error("Error creating note:", error);
-      toast({
-        variant: "destructive",
-        title: "Failed to create note",
-        description: error.message || "An unexpected error occurred.",
-      });
-    }
   }
 
   return (
