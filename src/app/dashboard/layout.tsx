@@ -37,8 +37,8 @@ import { Logo } from '@/components/logo';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { useAuth, useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-import { signOut } from 'firebase/auth';
+import { useEffect, useState } from 'react';
+import { signOut, getIdTokenResult } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 
 const navItems = [
@@ -51,7 +51,7 @@ const navItems = [
 
 const adminNavItem = { href: '/dashboard/admin', icon: Shield, label: 'Admin' };
 
-function NavLink({ href, icon: Icon, label }: { href: string; icon: React.ElementType; label: string }) {
+function NavLink({ href, icon: Icon, label }: { href:string; icon: React.ElementType; label: string }) {
   return (
     <Link
       href={href}
@@ -72,12 +72,21 @@ export default function DashboardLayout({
   const auth = useAuth();
   const router = useRouter();
   const { toast } = useToast();
-
-  const isAdmin = user?.email === 'damisileayoola@gmail.com';
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     if (!isUserLoading && !user) {
       router.push('/login');
+      return;
+    }
+    if (user) {
+      // Force a token refresh to get the latest claims.
+      getIdTokenResult(user, true).then((idTokenResult) => {
+        const claims = idTokenResult.claims;
+        // Check for custom admin claim OR the fallback email address.
+        const isAdminUser = claims.admin === true || user.email === 'damisileayoola@gmail.com';
+        setIsAdmin(isAdminUser);
+      });
     }
   }, [user, isUserLoading, router]);
 
@@ -200,3 +209,5 @@ export default function DashboardLayout({
     </div>
   );
 }
+
+    

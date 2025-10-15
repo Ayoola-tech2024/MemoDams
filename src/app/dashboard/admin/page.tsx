@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, orderBy } from "firebase/firestore";
@@ -11,6 +11,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { setAdminClaim } from "@/app/actions/set-admin-claim";
+import { useToast } from "@/hooks/use-toast";
+import { getIdTokenResult } from "firebase/auth";
 
 interface RegisteredUser {
   id: string;
@@ -18,32 +22,72 @@ interface RegisteredUser {
   email: string;
   createdAt: { seconds: number; nanoseconds: number };
   profilePictureUrl?: string;
+  customClaims?: {
+    admin?: boolean;
+  };
 }
 
 export default function AdminPage() {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const firestore = useFirestore();
-
-  const isAdmin = user?.email === 'damisileayoola@gmail.com';
+  const { toast } = useToast();
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isCheckingAdmin, setIsCheckingAdmin] = useState(true);
 
   useEffect(() => {
-    // If user is loaded and is not the admin, redirect them.
-    if (!isUserLoading && !isAdmin) {
+    if (isUserLoading) return;
+    if (!user) {
       router.push('/dashboard');
+      return;
     }
-  }, [user, isUserLoading, isAdmin, router]);
+
+    setIsCheckingAdmin(true);
+    // Force a token refresh to get the latest claims.
+    getIdTokenResult(user, true).then((idTokenResult) => {
+      const claims = idTokenResult.claims;
+      // Check for custom admin claim OR the fallback email address.
+      const isAdminUser = claims.admin === true || user.email === 'damisileayoola@gmail.com';
+      setIsAdmin(isAdminUser);
+      setIsCheckingAdmin(false);
+
+      if (!isAdminUser) {
+        router.push('/dashboard');
+      }
+    });
+
+  }, [user, isUserLoading, router]);
 
   const usersQuery = useMemoFirebase(() => {
-    // Only construct the query if the user is an admin.
     if (!isAdmin || !firestore) return null;
     return query(collection(firestore, 'users'), orderBy("createdAt", "desc"));
   }, [isAdmin, firestore]);
 
   const { data: users, isLoading: isLoadingUsers } = useCollection<RegisteredUser>(usersQuery);
 
-  // Show a loading state while we verify admin status
-  if (isUserLoading || !isAdmin) {
+  const handleMakeAdmin = async (targetUserId: string) => {
+    try {
+      const result = await setAdminClaim({ userId: targetUserId });
+      if (result.success) {
+        toast({
+          title: "Success",
+          description: "User has been made an admin. They may need to log out and log back in to see changes.",
+        });
+        // Note: The UI won't update instantly because claims are on the token.
+        // A full refresh or re-login by the target user is required.
+      } else {
+        throw new Error(result.error || "An unknown error occurred.");
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Failed to make admin",
+        description: error.message,
+      });
+    }
+  };
+
+  if (isUserLoading || isCheckingAdmin) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center bg-background">
         <p>Verifying access...</p>
@@ -68,7 +112,9 @@ export default function AdminPage() {
               <TableRow>
                 <TableHead>User</TableHead>
                 <TableHead>Email</TableHead>
+                <TableHead>Role</TableHead>
                 <TableHead className="hidden md:table-cell">Date Joined</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -82,7 +128,9 @@ export default function AdminPage() {
                       </div>
                     </TableCell>
                     <TableCell><Skeleton className="h-5 w-48" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-16" /></TableCell>
                     <TableCell className="hidden md:table-cell"><Skeleton className="h-5 w-40" /></TableCell>
+                    <TableCell><Skeleton className="h-8 w-24" /></TableCell>
                   </TableRow>
                 ))
               )}
@@ -99,8 +147,22 @@ export default function AdminPage() {
                     </div>
                   </TableCell>
                   <TableCell>{registeredUser.email}</TableCell>
+                  <TableCell>
+                    {registeredUser.customClaims?.admin || registeredUser.email === 'damisileayoola@gmail.com' ? (
+                      <Badge>Admin</Badge>
+                    ) : (
+                      <Badge variant="secondary">User</Badge>
+                    )}
+                  </TableCell>
                   <TableCell className="hidden md:table-cell">
                     {registeredUser.createdAt ? format(new Date(registeredUser.createdAt.seconds * 1000), "PPp") : 'No date'}
+                  </TableCell>
+                  <TableCell>
+                    {(!registeredUser.customClaims?.admin && registeredUser.email !== 'damisileayoola@gmail.com') && (
+                       <Button size="sm" variant="outline" onClick={() => handleMakeAdmin(registeredUser.id)}>
+                        Make Admin
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -118,3 +180,5 @@ export default function AdminPage() {
     </>
   );
 }
+
+    

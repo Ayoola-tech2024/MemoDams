@@ -38,6 +38,14 @@
           "type": "string",
           "description": "Timestamp indicating when the user account was created.",
           "format": "date-time"
+        },
+        "customClaims": {
+          "type": "object",
+          "properties": {
+            "admin": {
+              "type": "boolean"
+            }
+          }
         }
       },
       "required": [
@@ -178,7 +186,12 @@
       "password",
       "anonymous",
       "google.com"
-    ]
+    ],
+    "customClaims": {
+      "admin": {
+        "type": "boolean"
+      }
+    }
   },
   "firestore": {
     "structure": [
@@ -262,3 +275,5 @@
     "reasoning": "The Firestore structure is designed to ensure data isolation and security by leveraging path-based ownership and denormalization for authorization independence. Each user's data (notes, tags, files) is stored under their unique user ID, enabling simple and secure security rules. This design avoids complex `get()` calls in security rules, ensuring atomic operations and easier debugging.  Specifically:\n\n*   **/users/{userId}**: Stores user profile information.\n*   **/users/{userId}/notes/{noteId}**: Stores notes created by a specific user.\n*   **/users/{userId}/tags/{tagId}**: Stores tags created by a specific user.\n*   **/users/{userId}/files/{fileId}**: Stores files uploaded by a specific user.\n\nThis structure supports secure list operations (QAPs) by ensuring that each collection contains documents with the same security posture: only the user identified by `{userId}` can access the data within that branch. There's no need to filter based on user ID within the rules, as the path inherently defines ownership.  Authorization Independence is achieved because rules only need to validate `request.auth.uid` against the `{userId}` path parameter; no parent document reads are necessary."
   }
 }
+
+    
