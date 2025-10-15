@@ -11,11 +11,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Logo } from "@/components/logo"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { useAuth, useUser } from "@/firebase"
+import { useAuth, useUser, useFirestore, FirestorePermissionError, errorEmitter } from "@/firebase"
 import { createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, updateProfile } from "firebase/auth"
 import { useEffect, useState } from "react"
 import { useToast } from "@/hooks/use-toast"
 import { Eye, EyeOff } from "lucide-react"
+import { doc, setDoc, serverTimestamp } from "firebase/firestore"
 
 function GoogleIcon() {
   return (
@@ -37,6 +38,7 @@ const formSchema = z.object({
 export default function SignupPage() {
   const router = useRouter()
   const auth = useAuth()
+  const firestore = useFirestore();
   const { user, isUserLoading } = useUser()
   const { toast } = useToast()
   const [showPassword, setShowPassword] = useState(false);
@@ -56,10 +58,32 @@ export default function SignupPage() {
     }
   }, [user, isUserLoading, router])
 
+  const createUserDocument = (user: any, additionalData = {}) => {
+    if (!user || !firestore) return;
+    const userRef = doc(firestore, 'users', user.uid);
+    const userData = {
+        name: user.displayName,
+        email: user.email,
+        createdAt: serverTimestamp(),
+        profilePictureUrl: user.photoURL || '',
+        isEmailVerified: user.emailVerified,
+        ...additionalData
+    };
+    setDoc(userRef, userData, { merge: true }).catch(error => {
+        const permissionError = new FirestorePermissionError({
+            path: userRef.path,
+            operation: 'create',
+            requestResourceData: userData
+        });
+        errorEmitter.emit('permission-error', permissionError);
+    })
+  }
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password)
       await updateProfile(userCredential.user, { displayName: values.fullName })
+      createUserDocument(userCredential.user, { name: values.fullName });
       toast({ title: "Account Created", description: "Welcome to MemoDams!" })
       router.push("/dashboard")
     } catch (error: any) {
@@ -75,7 +99,8 @@ export default function SignupPage() {
   async function handleGoogleSignIn() {
     try {
       const provider = new GoogleAuthProvider()
-      await signInWithPopup(auth, provider)
+      const result = await signInWithPopup(auth, provider)
+      createUserDocument(result.user);
       toast({ title: "Account Created", description: "Welcome to MemoDams!" })
       router.push("/dashboard")
     } catch (error: any) {
