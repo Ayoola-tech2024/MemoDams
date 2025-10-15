@@ -13,7 +13,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useTheme } from "next-themes"
-import { Sun, Moon, Laptop, User, Trash2, Mail, MessageSquare } from "lucide-react"
+import { Sun, Moon, Laptop, User, Trash2, Mail, MessageSquare, Eye, EyeOff } from "lucide-react"
 import Link from "next/link";
 import {
   AlertDialog,
@@ -27,15 +27,151 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast";
+import { useUser, useFirestore, useDoc, useMemoFirebase, FirestorePermissionError, errorEmitter } from "@/firebase"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { z } from "zod"
+import { updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useEffect, useState, useTransition } from "react";
+import { FileUploadDialog } from "@/components/file-upload-dialog";
+import { doc, setDoc } from "firebase/firestore";
+import { useRouter } from "next/navigation";
 
+
+const profileSchema = z.object({
+  fullName: z.string().min(1, { message: "Full name is required." }),
+  bio: z.string().optional(),
+})
+
+const passwordSchema = z.object({
+  currentPassword: z.string().min(1, "Current password is required."),
+  newPassword: z.string().min(6, "New password must be at least 6 characters."),
+  confirmPassword: z.string(),
+}).refine(data => data.newPassword === data.confirmPassword, {
+  message: "Passwords do not match.",
+  path: ["confirmPassword"],
+})
 
 export default function SettingsPage() {
-  const { theme, setTheme } = useTheme()
+  const { theme, setTheme } = useTheme();
   const { toast } = useToast();
+  const { user } = useUser()
+  const firestore = useFirestore();
+  const router = useRouter();
+
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+  const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showProfileConfirmPassword, setShowProfileConfirmPassword] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  const userProfileRef = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return doc(firestore, 'users', user.uid);
+  }, [user, firestore]);
+
+  const { data: userProfile, isLoading: isLoadingProfile } = useDoc(userProfileRef);
+  
+  const profileForm = useForm<z.infer<typeof profileSchema>>({
+    resolver: zodResolver(profileSchema),
+    defaultValues: { fullName: "", bio: "" },
+  });
+
+  const passwordForm = useForm<z.infer<typeof passwordSchema>>({
+    resolver: zodResolver(passwordSchema),
+    defaultValues: { currentPassword: "", newPassword: "", confirmPassword: "" },
+  });
+
+  const profileConfirmPasswordForm = useForm<{password: string}>({
+     resolver: zodResolver(z.object({ password: z.string().min(1, "Password is required.")})),
+     defaultValues: { password: "" }
+  });
+
+  useEffect(() => {
+    if (userProfile) {
+        profileForm.reset({
+            fullName: user?.displayName || "",
+            bio: userProfile.bio || ""
+        });
+    } else if(user) {
+         profileForm.reset({
+            fullName: user.displayName || ""
+        });
+    }
+  }, [userProfile, user, profileForm]);
+
+  async function onProfileSubmit(values: z.infer<typeof profileSchema>) {
+    if (!user || !user.email || !userProfileRef) return;
+
+    const password = profileConfirmPasswordForm.getValues("password");
+    if(!password) {
+        profileConfirmPasswordForm.setError("password", {type: "manual", message: "Password is required to save changes."});
+        return;
+    }
+
+    try {
+        const credential = EmailAuthProvider.credential(user.email, password);
+        await reauthenticateWithCredential(user, credential);
+
+        // Once re-authenticated, proceed with updates
+        await updateProfile(user, { displayName: values.fullName });
+        
+        const profileData = { bio: values.bio, name: values.fullName };
+        await setDoc(userProfileRef, profileData, { merge: true });
+
+        toast({ title: "Profile Updated", description: "Your profile has been successfully updated." });
+        profileConfirmPasswordForm.reset();
+        setIsProfileDialogOpen(false);
+        
+    } catch (error: any) {
+        console.error("Profile update failed", error);
+        if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') {
+             profileConfirmPasswordForm.setError("password", { type: "manual", message: "Incorrect password."})
+        } else {
+             toast({ variant: "destructive", title: "Profile Update Failed", description: error.message });
+        }
+    }
+  }
+
+  async function onPasswordSubmit(values: z.infer<typeof passwordSchema>) {
+    if (!user || !user.email) return;
+
+    try {
+        const credential = EmailAuthProvider.credential(user.email, values.currentPassword);
+        await reauthenticateWithCredential(user, credential);
+        await updatePassword(user, values.newPassword);
+        
+        toast({ title: "Password Updated", description: "Your password has been changed successfully." });
+        passwordForm.reset();
+        setIsPasswordDialogOpen(false);
+    } catch (error: any) {
+        console.error("Password update failed", error);
+        if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') {
+            passwordForm.setError("currentPassword", { type: "manual", message: "Incorrect current password."})
+        } else {
+             toast({ variant: "destructive", title: "Password Update Failed", description: error.message });
+        }
+    }
+  }
+
+  async function handlePhotoUploadComplete(downloadURL: string) {
+    if (!user || !userProfileRef) return;
+
+    await updateProfile(user, { photoURL: downloadURL });
+    const photoData = { profilePictureUrl: downloadURL };
+    await setDoc(userProfileRef, photoData, { merge: true });
+
+    toast({ title: "Profile Photo Updated", description: "Your new photo has been saved."});
+    startTransition(() => router.refresh());
+  }
 
   const handleDeleteAccount = () => {
-    // This is a placeholder. In a real app, you would have a complex flow
-    // for account deletion, including re-authentication and data cleanup.
     toast({
       variant: "destructive",
       title: "Account Deletion Requested",
@@ -45,6 +181,9 @@ export default function SettingsPage() {
 
   const emailSubject = "Issue report from MemoDams";
   const whatsAppText = "Hello, I have a question about MemoDams.";
+  const isPasswordProvider = user?.providerData.some((provider) => provider.providerId === "password");
+
+  if (!user || isLoadingProfile) return <div>Loading...</div>
 
   return (
     <>
@@ -52,6 +191,223 @@ export default function SettingsPage() {
         <h1 className="text-2xl font-semibold md:text-3xl">Settings</h1>
       </div>
       <div className="grid gap-6">
+        <Card>
+          <Form {...profileForm}>
+            <form onSubmit={profileForm.handleSubmit(onProfileSubmit)}>
+              <CardHeader>
+                <CardTitle>Personal Information</CardTitle>
+                <CardDescription>
+                  Update your personal details here. Click save when you're done.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-6">
+                <div className="flex items-center gap-4">
+                  <Avatar className="h-20 w-20">
+                    <AvatarImage src={user.photoURL || `https://picsum.photos/seed/${user.uid}/80/80`} />
+                    <AvatarFallback>{user.displayName?.charAt(0) || 'U'}</AvatarFallback>
+                  </Avatar>
+                   <FileUploadDialog
+                      fileTypes={["image/png", "image/jpeg", "image/gif"]}
+                      onUploadComplete={handlePhotoUploadComplete}
+                      trigger={<Button type="button">Change Photo</Button>}
+                    />
+                </div>
+                 <FormField
+                  control={profileForm.control}
+                  name="fullName"
+                  render={({ field }) => (
+                    <FormItem className="grid gap-2">
+                      <FormLabel>Full Name</FormLabel>
+                       <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="grid gap-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input id="email" type="email" defaultValue={user.email || ""} readOnly />
+                   <p className="text-xs text-muted-foreground mt-1">Email address cannot be changed.</p>
+                </div>
+                 <FormField
+                  control={profileForm.control}
+                  name="bio"
+                  render={({ field }) => (
+                    <FormItem className="grid gap-2">
+                      <FormLabel>Short Bio</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Tell us a little about yourself"
+                          {...field}
+                        />
+                      </FormControl>
+                       <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </CardContent>
+              <CardFooter className="border-t px-6 py-4">
+                 <AlertDialog open={isProfileDialogOpen} onOpenChange={setIsProfileDialogOpen}>
+                    <AlertDialogTrigger asChild>
+                        <Button type="button">Save Changes</Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                       <Form {...profileConfirmPasswordForm}>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Confirm Your Identity</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                For your security, please enter your current password to make this change.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <FormField
+                            control={profileConfirmPasswordForm.control}
+                            name="password"
+                            render={({ field }) => (
+                            <FormItem className="grid gap-2 mt-4">
+                                <FormLabel>Current Password</FormLabel>
+                                <div className="relative">
+                                    <FormControl>
+                                    <Input type={showProfileConfirmPassword ? "text" : "password"} {...field} autoFocus />
+                                    </FormControl>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="absolute inset-y-0 right-0 h-full px-3"
+                                        onClick={() => setShowProfileConfirmPassword(!showProfileConfirmPassword)}
+                                    >
+                                        {showProfileConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                    </Button>
+                                </div>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={profileForm.handleSubmit(onProfileSubmit)} disabled={profileForm.formState.isSubmitting}>
+                                {profileForm.formState.isSubmitting ? "Saving..." : "Confirm and Save"}
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                       </Form>
+                    </AlertDialogContent>
+                </AlertDialog>
+              </CardFooter>
+            </form>
+          </Form>
+        </Card>
+
+        {isPasswordProvider && (
+            <Card>
+            <Form {...passwordForm}>
+                <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)}>
+                <CardHeader>
+                    <CardTitle>Change Password</CardTitle>
+                    <CardDescription>
+                    Update your password here. It's a good practice to use a strong, unique password.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-6">
+                    <FormField
+                      control={passwordForm.control}
+                      name="newPassword"
+                      render={({ field }) => (
+                        <FormItem className="grid gap-2">
+                          <FormLabel>New Password</FormLabel>
+                          <div className="relative">
+                            <FormControl>
+                              <Input type={showNewPassword ? "text" : "password"} {...field} />
+                            </FormControl>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="absolute inset-y-0 right-0 h-full px-3"
+                              onClick={() => setShowNewPassword(!showNewPassword)}
+                            >
+                              {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </Button>
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={passwordForm.control}
+                      name="confirmPassword"
+                      render={({ field }) => (
+                        <FormItem className="grid gap-2">
+                          <FormLabel>Confirm New Password</FormLabel>
+                           <div className="relative">
+                            <FormControl>
+                              <Input type={showConfirmPassword ? "text" : "password"} {...field} />
+                            </FormControl>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="absolute inset-y-0 right-0 h-full px-3"
+                              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            >
+                              {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </Button>
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                </CardContent>
+                <CardFooter className="border-t px-6 py-4">
+                    <AlertDialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
+                    <AlertDialogTrigger asChild>
+                        <Button type="button">Update Password</Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                        <AlertDialogTitle>Confirm Your Identity</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            For your security, please enter your current password to make this change.
+                        </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <FormField
+                            control={passwordForm.control}
+                            name="currentPassword"
+                            render={({ field }) => (
+                            <FormItem className="grid gap-2 mt-4">
+                                <FormLabel>Current Password</FormLabel>
+                                <div className="relative">
+                                <FormControl>
+                                <Input type={showCurrentPassword ? "text" : "password"} {...field} autoFocus />
+                                </FormControl>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="absolute inset-y-0 right-0 h-full px-3"
+                                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                                >
+                                    {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                </Button>
+                                </div>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+                        <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={passwordForm.handleSubmit(onPasswordSubmit)} disabled={passwordForm.formState.isSubmitting}>
+                            {passwordForm.formState.isSubmitting ? "Updating..." : "Confirm and Update"}
+                        </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                    </AlertDialog>
+                </CardFooter>
+                </form>
+            </Form>
+            </Card>
+        )}
+
         <Card>
           <CardHeader>
             <CardTitle>Theme Preferences</CardTitle>
@@ -82,28 +438,6 @@ export default function SettingsPage() {
               </Label>
             </RadioGroup>
           </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Account</CardTitle>
-            <CardDescription>
-              Manage your account and personal information.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Update your name, bio, and password on your profile page.
-            </p>
-          </CardContent>
-           <CardFooter className="border-t px-6 py-4">
-            <Button asChild>
-              <Link href="/dashboard/profile">
-                <User className="mr-2 h-4 w-4" />
-                Go to Profile
-              </Link>
-            </Button>
-          </CardFooter>
         </Card>
 
         <Card>
