@@ -15,6 +15,8 @@ import { Input } from '@/components/ui/input';
 import {
   Sheet,
   SheetContent,
+  SheetHeader,
+  SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
 import {
@@ -135,10 +137,12 @@ export default function DashboardLayout({
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="flex flex-col">
-              <nav className="grid gap-2 text-lg font-medium">
-                <div className="mb-4">
-                  <Logo />
-                </div>
+               <SheetHeader>
+                <SheetTitle>
+                    <Logo />
+                </SheetTitle>
+              </SheetHeader>
+              <nav className="grid gap-2 text-lg font-medium mt-4">
                 {navItems.map((item) => (
                   <NavLink key={item.href} {...item} />
                 ))}
