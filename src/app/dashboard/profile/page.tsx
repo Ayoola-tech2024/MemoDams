@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useUser, useAuth } from "@/firebase"
+import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -32,8 +32,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { FileUploadDialog } from "@/components/file-upload-dialog";
+import { doc, setDoc } from "firebase/firestore";
+import { useRouter } from "next/navigation";
 
 
 const profileSchema = z.object({
@@ -53,20 +56,44 @@ const passwordSchema = z.object({
 
 export default function ProfilePage() {
   const { user } = useUser()
-  const auth = useAuth();
+  const firestore = useFirestore();
   const { toast } = useToast();
+  const router = useRouter();
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+
+  const userProfileRef = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return doc(firestore, 'users', user.uid);
+  }, [user, firestore]);
+
+  const { data: userProfile, isLoading: isLoadingProfile } = useDoc(userProfileRef);
 
   const profileForm = useForm<z.infer<typeof profileSchema>>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
-      fullName: user?.displayName || "",
-      bio: "", // You might need to store and retrieve this from Firestore
+      fullName: "",
+      bio: "",
     },
-  })
+  });
+
+  useEffect(() => {
+    if (userProfile) {
+        profileForm.reset({
+            fullName: user?.displayName || "",
+            bio: userProfile.bio || ""
+        });
+    } else if(user) {
+         profileForm.reset({
+            fullName: user.displayName || ""
+        });
+    }
+  }, [userProfile, user, profileForm]);
+
 
   const passwordForm = useForm<z.infer<typeof passwordSchema>>({
     resolver: zodResolver(passwordSchema),
@@ -78,10 +105,10 @@ export default function ProfilePage() {
   })
 
   async function onProfileSubmit(values: z.infer<typeof profileSchema>) {
-    if (!user) return;
+    if (!user || !userProfileRef) return;
     try {
       await updateProfile(user, { displayName: values.fullName });
-      // Here you would also update the bio in your Firestore database
+      await setDoc(userProfileRef, { bio: values.bio }, { merge: true });
       toast({ title: "Profile Updated", description: "Your profile has been successfully updated." });
     } catch (error: any) {
       toast({ variant: "destructive", title: "Update Failed", description: error.message });
@@ -93,14 +120,12 @@ export default function ProfilePage() {
 
     try {
         const credential = EmailAuthProvider.credential(user.email, values.currentPassword);
-        // Re-authenticate before updating password
         await reauthenticateWithCredential(user, credential);
-        // Now update the password
         await updatePassword(user, values.newPassword);
         
         toast({ title: "Password Updated", description: "Your password has been changed successfully." });
         passwordForm.reset();
-        setIsPasswordDialogOpen(false); // Close dialog on success
+        setIsPasswordDialogOpen(false);
     } catch (error: any) {
         console.error("Password update failed", error);
         if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') {
@@ -112,12 +137,27 @@ export default function ProfilePage() {
     }
   }
 
+  async function handlePhotoUploadComplete(downloadURL: string) {
+    if (!user || !userProfileRef) return;
+    try {
+      await updateProfile(user, { photoURL: downloadURL });
+      await setDoc(userProfileRef, { profilePictureUrl: downloadURL }, { merge: true });
+      toast({ title: "Profile Photo Updated", description: "Your new photo has been saved."});
+      startTransition(() => {
+        // Force a refresh of the layout to show the new avatar
+        router.refresh();
+      });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Photo Update Failed", description: error.message });
+    }
+  }
+
   const isPasswordProvider = user?.providerData.some(
     (provider) => provider.providerId === "password"
   );
 
 
-  if (!user) {
+  if (!user || isLoadingProfile) {
     return <div>Loading...</div>
   }
 
@@ -142,7 +182,11 @@ export default function ProfilePage() {
                     <AvatarImage src={user.photoURL || `https://picsum.photos/seed/${user.uid}/80/80`} />
                     <AvatarFallback>{user.displayName?.charAt(0) || 'U'}</AvatarFallback>
                   </Avatar>
-                  <Button type="button">Change Photo</Button>
+                   <FileUploadDialog
+                      fileTypes={["image/png", "image/jpeg", "image/gif"]}
+                      onUploadComplete={handlePhotoUploadComplete}
+                      trigger={<Button type="button">Change Photo</Button>}
+                    />
                 </div>
                  <FormField
                   control={profileForm.control}
@@ -180,7 +224,7 @@ export default function ProfilePage() {
                 />
               </CardContent>
               <CardFooter className="border-t px-6 py-4">
-                <Button type="submit" disabled={profileForm.formState.isSubmitting}>
+                <Button type="submit" disabled={profileForm.formState.isSubmitting || isPending}>
                     {profileForm.formState.isSubmitting ? "Saving..." : "Save Changes"}
                 </Button>
               </CardFooter>

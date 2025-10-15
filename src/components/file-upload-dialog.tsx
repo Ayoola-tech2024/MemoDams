@@ -24,9 +24,10 @@ import { useRouter } from "next/navigation";
 interface FileUploadDialogProps {
   trigger: ReactElement;
   fileTypes?: string[]; // e.g., ["image/png", "image/jpeg"]
+  onUploadComplete?: (downloadURL: string) => void;
 }
 
-export function FileUploadDialog({ trigger, fileTypes }: FileUploadDialogProps) {
+export function FileUploadDialog({ trigger, fileTypes, onUploadComplete }: FileUploadDialogProps) {
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -59,6 +60,7 @@ export function FileUploadDialog({ trigger, fileTypes }: FileUploadDialogProps) 
     setUploadProgress(0);
 
     const storage = getStorage();
+    // For profile pictures, we could use a different path, but for now, this is generic
     const filePath = `users/${user.uid}/files/${Date.now()}_${file.name}`;
     const storageRef = ref(storage, filePath);
     const task = uploadBytesResumable(storageRef, file);
@@ -82,10 +84,9 @@ export function FileUploadDialog({ trigger, fileTypes }: FileUploadDialogProps) 
           handleClose();
         } else {
             console.error("Upload failed:", error);
-            // Propagate the permission error for detailed debugging
             const permissionError = new FirestorePermissionError({
                 path: filePath,
-                operation: 'write', // 'write' is the equivalent for storage uploads
+                operation: 'write', 
             });
             errorEmitter.emit('permission-error', permissionError);
         }
@@ -93,6 +94,12 @@ export function FileUploadDialog({ trigger, fileTypes }: FileUploadDialogProps) 
       async () => {
         const downloadURL = await getDownloadURL(task.snapshot.ref);
         
+        if (onUploadComplete) {
+            onUploadComplete(downloadURL);
+            handleClose();
+            return;
+        }
+
         try {
           await addDoc(collection(firestore, "users", user.uid, "files"), {
             name: file.name,
@@ -138,7 +145,6 @@ export function FileUploadDialog({ trigger, fileTypes }: FileUploadDialogProps) 
 
   const handleClose = () => {
     setOpen(false);
-    // Delay resetting file state to avoid dialog content flicker while closing
     setTimeout(() => {
         setFile(null);
         setUploadProgress(0);
