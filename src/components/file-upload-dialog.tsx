@@ -55,7 +55,7 @@ export function FileUploadDialog({ trigger, fileTypes }: FileUploadDialogProps) 
     }
 
     setIsUploading(true);
-    handleClose(); // Close dialog immediately for better UX
+    setUploadProgress(0);
 
     const storage = getStorage();
     const storageRef = ref(storage, `users/${user.uid}/files/${Date.now()}_${file.name}`);
@@ -65,7 +65,7 @@ export function FileUploadDialog({ trigger, fileTypes }: FileUploadDialogProps) 
       "state_changed",
       (snapshot) => {
         const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        // We could use this progress value to show a global progress bar if needed
+        setUploadProgress(progress);
       },
       (error) => {
         console.error("Upload failed:", error);
@@ -74,6 +74,7 @@ export function FileUploadDialog({ trigger, fileTypes }: FileUploadDialogProps) 
           title: "Upload Failed",
           description: "You do not have permission to upload files. Please check storage rules.",
         });
+        setIsUploading(false);
       },
       async () => {
         const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
@@ -92,11 +93,12 @@ export function FileUploadDialog({ trigger, fileTypes }: FileUploadDialogProps) 
             title: "Upload Successful",
             description: `${file.name} has been uploaded.`,
           });
-
-          // Refresh the page to show the new file
+          
           startTransition(() => {
             router.refresh();
           });
+          
+          handleClose();
 
         } catch (firestoreError: any) {
              console.error("Firestore write failed:", firestoreError);
@@ -105,6 +107,7 @@ export function FileUploadDialog({ trigger, fileTypes }: FileUploadDialogProps) 
                 title: "Failed to save file metadata",
                 description: "The file was uploaded, but we couldn't save its details. Check Firestore rules."
              });
+             setIsUploading(false);
         }
       }
     );
@@ -137,7 +140,7 @@ export function FileUploadDialog({ trigger, fileTypes }: FileUploadDialogProps) 
         </DialogHeader>
 
         <div className="py-4">
-          {!file ? (
+          {!file && !isUploading ? (
             <div className="relative flex justify-center w-full h-48 border-2 border-dashed rounded-lg border-muted-foreground/50">
               <Input
                 id="file-upload"
@@ -145,6 +148,7 @@ export function FileUploadDialog({ trigger, fileTypes }: FileUploadDialogProps) 
                 className="absolute inset-0 z-10 w-full h-full opacity-0 cursor-pointer"
                 onChange={handleFileChange}
                 accept={fileTypes?.join(",")}
+                disabled={isUploading}
               />
               <label
                 htmlFor="file-upload"
@@ -157,7 +161,7 @@ export function FileUploadDialog({ trigger, fileTypes }: FileUploadDialogProps) 
                 {fileTypes && <p className="text-xs text-muted-foreground">Allowed types: {fileTypes.join(", ")}</p>}
               </label>
             </div>
-          ) : (
+          ) : file && (
             <div className="p-4 border rounded-lg">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -169,20 +173,29 @@ export function FileUploadDialog({ trigger, fileTypes }: FileUploadDialogProps) 
                             </p>
                         </div>
                     </div>
-                    <Button variant="ghost" size="icon" onClick={() => setFile(null)}>
-                        <X className="h-4 w-4" />
-                    </Button>
+                    {!isUploading && (
+                        <Button variant="ghost" size="icon" onClick={() => setFile(null)}>
+                            <X className="h-4 w-4" />
+                        </Button>
+                    )}
                 </div>
+
+                {isUploading && (
+                  <div className="mt-4">
+                    <Progress value={uploadProgress} className="w-full" />
+                    <p className="text-xs text-center text-muted-foreground mt-2">{Math.round(uploadProgress)}% uploaded</p>
+                  </div>
+                )}
             </div>
           )}
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose}>
+          <Button variant="outline" onClick={handleClose} disabled={isUploading}>
             Cancel
           </Button>
-          <Button onClick={handleUpload} disabled={!file || isPending}>
-            {isPending ? "Starting..." : "Upload"}
+          <Button onClick={handleUpload} disabled={!file || isUploading || isPending}>
+            {isUploading ? "Uploading..." : "Upload"}
           </Button>
         </DialogFooter>
       </DialogContent>
