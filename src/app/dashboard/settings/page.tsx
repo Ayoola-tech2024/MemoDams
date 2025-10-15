@@ -13,7 +13,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useTheme } from "next-themes"
-import { Sun, Moon, Laptop, User, Trash2, Mail } from "lucide-react"
+import { Sun, Moon, Laptop, User, Trash2, Mail, MessageSquare } from "lucide-react"
 import Link from "next/link";
 import {
   AlertDialog,
@@ -115,11 +115,17 @@ export default function SettingsPage() {
               Your feedback is valuable in helping us improve MemoDams.
             </p>
           </CardContent>
-           <CardFooter className="border-t px-6 py-4">
+           <CardFooter className="border-t px-6 py-4 flex items-center gap-2">
             <Button asChild variant="outline">
               <a href="mailto:damisileayoola@gmail.com?subject=Issue%20Report%20/%20Feedback">
                 <Mail className="mr-2 h-4 w-4" />
                 Report an Issue
+              </a>
+            </Button>
+            <Button asChild variant="outline">
+              <a href="https://wa.me/2348169787869" target="_blank" rel="noopener noreferrer">
+                <MessageSquare className="mr-2 h-4 w-4" />
+                Contact Developer
               </a>
             </Button>
           </CardFooter>
