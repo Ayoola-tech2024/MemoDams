@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Box, FileText, Cloud, Lock, ArrowRight, Notebook } from 'lucide-react';
+import { Box, FileText, Cloud, Lock, ArrowRight } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { ThemeToggle } from '@/components/theme-toggle';
 
@@ -49,7 +49,7 @@ export default function Home() {
       </header>
 
       <main className="flex-1">
-        <section className="relative py-20 md:py-32">
+        <section className="relative flex h-[calc(100vh-3.5rem)] items-center py-20 md:py-32">
           <div
             aria-hidden="true"
             className="absolute inset-0 top-0 z-0 grid grid-cols-2 -space-x-52 opacity-20"
@@ -58,14 +58,14 @@ export default function Home() {
             <div className="h-60 bg-gradient-to-r from-accent to-cyan-400 blur-3xl dark:h-96"></div>
           </div>
           <div className="container relative z-10 text-center">
-            <h1 className="text-4xl font-extrabold tracking-tight md:text-6xl lg:text-7xl">
+            <h1 className="text-4xl font-extrabold tracking-tight md:text-5xl">
               Your notes, memories, and files,
               <br />
               <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
                 all in one secure place.
               </span>
             </h1>
-            <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
+            <p className="mx-auto mt-6 max-w-2xl text-base text-muted-foreground md:text-lg">
               MemoDams provides a secure and beautiful space to capture your life's moments.
               Store everything from fleeting ideas to important documents with powerful cloud technology.
             </p>
@@ -82,7 +82,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="features" className="py-20 md:py-28">
+        <section id="features" className="bg-muted/30 py-20 md:py-28">
           <div className="container">
             <div className="mx-auto mb-16 max-w-2xl text-center">
               <h2 className="text-3xl font-bold md:text-4xl">Everything You Need, All in One App</h2>
