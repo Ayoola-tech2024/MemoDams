@@ -1,0 +1,114 @@
+/**
+ * @file Firestore Security Rules for MemoDams
+ *
+ * @core_philosophy This ruleset enforces a strict user-ownership model. Each user has exclusive access to their profile data, notes, tags, and files.
+ *
+ * @data_structure All data is nested under /users/{userId}, ensuring clear ownership.
+ *   - /users/{userId}: User profile information.
+ *   - /users/{userId}/notes/{noteId}: Notes created by the user.
+ *   - /users/{userId}/tags/{tagId}: Tags created by the user.
+ *   - /users/{userId}/files/{fileId}: Files uploaded by the user.
+ *
+ * @key_security_decisions
+ *   - User listing is explicitly denied.
+ *   - All write operations are restricted to the owner of the data.
+ *   - Data validation is minimized for prototyping but enforces critical authorization fields.
+ *
+ * @denormalization_for_authorization  The data structure inherently denormalizes user ownership into the document paths, removing the need for additional reads or complex role-based checks.
+ *
+ * @structural_segregation  Private user data is stored in user-specific subcollections, eliminating the need for public/private flags or complex filtering logic during list operations.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Enforces access control for user profiles. Only the authenticated user can read or write their own profile.
+     * @path /users/{userId}
+     * @allow (create) User with UID 'user_abc' can create their profile document with id 'user_abc'.
+     * @allow (get, update, delete) User with UID 'user_abc' can read, update, or delete their profile document with id 'user_abc'.
+     * @deny (create) User with UID 'user_def' cannot create a profile document with id 'user_abc'.
+     * @deny (update, delete) User with UID 'user_def' cannot update or delete the profile document with id 'user_abc'.
+     * @principle Enforces document ownership for writes.
+     */
+    match /users/{userId} {
+      // isOwner will check if request.auth.uid == userId
+      allow get: if isOwner(userId);
+      allow list: if false; // User listing is not permitted.
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Enforces access control for notes. Only the authenticated user can read or write their own notes.
+     * @path /users/{userId}/notes/{noteId}
+     * @allow (create) User with UID 'user_abc' can create a note under /users/user_abc/notes/note1.
+     * @allow (get, update, delete) User with UID 'user_abc' can read, update, or delete a note under /users/user_abc/notes/note1.
+     * @allow (list) User with UID 'user_abc' can list notes under /users/user_abc/notes/.
+     * @deny (create) User with UID 'user_def' cannot create a note under /users/user_abc/notes/note1.
+     * @deny (update, delete) User with UID 'user_def' cannot update or delete a note under /users/user_abc/notes/note1.
+     * @principle Restricts access to a user's own notes.
+     */
+    match /users/{userId}/notes/{noteId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && resource.data.userId == userId;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Enforces access control for tags. Only the authenticated user can read or write their own tags.
+     * @path /users/{userId}/tags/{tagId}
+     * @allow (create) User with UID 'user_abc' can create a tag under /users/user_abc/tags/tag1.
+     * @allow (get, update, delete) User with UID 'user_abc' can read, update, or delete a tag under /users/user_abc/tags/tag1.
+     * @allow (list) User with UID 'user_abc' can list tags under /users/user_abc/tags/.
+     * @deny (create) User with UID 'user_def' cannot create a tag under /users/user_abc/tags/tag1.
+     * @deny (update, delete) User with UID 'user_def' cannot update or delete a tag under /users/user_abc/tags/tag1.
+     * @principle Restricts access to a user's own tags.
+     */
+    match /users/{userId}/tags/{tagId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && resource.data.userId == userId;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Enforces access control for files. Only the authenticated user can read or write their own files.
+     * @path /users/{userId}/files/{fileId}
+     * @allow (create) User with UID 'user_abc' can create a file under /users/user_abc/files/file1.
+     * @allow (get, update, delete) User with UID 'user_abc' can read, update, or delete a file under /users/user_abc/files/file1.
+     * @allow (list) User with UID 'user_abc' can list files under /users/user_abc/files/.
+     * @deny (create) User with UID 'user_def' cannot create a file under /users/user_abc/files/file1.
+     * @deny (update, delete) User with UID 'user_def' cannot update or delete a file under /users/user_abc/files/file1.
+     * @principle Restricts access to a user's own files.
+     */
+    match /users/{userId}/files/{fileId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && resource.data.userId == userId;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    // --- Helper functions ---
+
+    // Checks if the user is signed in.
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Checks if the user ID matches the authenticated user's UID.
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Checks if the user ID matches the authenticated user's UID and the resource exists.
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+  }
+}
