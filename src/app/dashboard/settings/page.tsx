@@ -43,6 +43,9 @@ export default function SettingsPage() {
     })
   }
 
+  const emailSubject = "Issue report from MemoDams";
+  const whatsAppText = "Hello, I have a question about MemoDams.";
+
   return (
     <>
       <div className="flex items-center justify-between">
@@ -117,13 +120,13 @@ export default function SettingsPage() {
           </CardContent>
            <CardFooter className="border-t px-6 py-4 flex items-center gap-2">
             <Button asChild variant="outline">
-              <a href="mailto:damisileayoola@gmail.com?subject=Issue%20Report%20/%20Feedback">
+              <a href={`mailto:damisileayoola@gmail.com?subject=${encodeURIComponent(emailSubject)}`}>
                 <Mail className="mr-2 h-4 w-4" />
                 Report an Issue
               </a>
             </Button>
             <Button asChild variant="outline">
-              <a href="https://wa.me/2348169787869" target="_blank" rel="noopener noreferrer">
+              <a href={`https://wa.me/2348169787869?text=${encodeURIComponent(whatsAppText)}`} target="_blank" rel="noopener noreferrer">
                 <MessageSquare className="mr-2 h-4 w-4" />
                 Contact Developer
               </a>
