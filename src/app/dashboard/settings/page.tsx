@@ -117,7 +117,7 @@ export default function SettingsPage() {
           </CardContent>
            <CardFooter className="border-t px-6 py-4">
             <Button asChild variant="outline">
-              <a href="mailto:support@memodams.app?subject=Issue%20Report%20/%20Feedback">
+              <a href="mailto:damisileayoola@gmail.com?subject=Issue%20Report%20/%20Feedback">
                 <Mail className="mr-2 h-4 w-4" />
                 Report an Issue
               </a>
