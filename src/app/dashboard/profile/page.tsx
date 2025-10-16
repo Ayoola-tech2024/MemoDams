@@ -13,9 +13,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase"
 import { doc } from "firebase/firestore";
 import Link from "next/link";
-import { Settings, Calendar, LogIn, Cake } from "lucide-react";
+import { Settings, Calendar, LogIn, Cake, BadgeCheck, BadgeAlert } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
+import { Badge } from "@/components/ui/badge";
 
 
 export default function ProfilePage() {
@@ -69,7 +70,18 @@ export default function ProfilePage() {
                  ) : (
                     <>
                         <h2 className="text-xl font-semibold">{user?.displayName}</h2>
-                        <p className="text-sm text-muted-foreground">{user?.email}</p>
+                        <div className="flex items-center gap-2">
+                           <p className="text-sm text-muted-foreground">{user?.email}</p>
+                           {user?.emailVerified ? (
+                              <Badge variant="secondary" className="border-green-500/50 bg-green-500/10 text-green-700 dark:text-green-400">
+                                <BadgeCheck className="mr-1 h-3 w-3" /> Verified
+                              </Badge>
+                           ) : (
+                             <Badge variant="destructive" className="border-yellow-500/50 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400">
+                                <BadgeAlert className="mr-1 h-3 w-3" /> Not Verified
+                              </Badge>
+                           )}
+                        </div>
                     </>
                  )}
               </div>

@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Logo } from "@/components/logo"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { useAuth, useUser, useFirestore, FirestorePermissionError, errorEmitter } from "@/firebase"
-import { createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, updateProfile } from "firebase/auth"
+import { createUserWithEmailAndPassword, sendEmailVerification, signInWithPopup, GoogleAuthProvider, updateProfile } from "firebase/auth"
 import { useEffect, useState } from "react"
 import { useToast } from "@/hooks/use-toast"
 import { Eye, EyeOff } from "lucide-react"
@@ -82,10 +82,17 @@ export default function SignupPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password)
-      await updateProfile(userCredential.user, { displayName: values.fullName })
+      await updateProfile(userCredential.user, { displayName: values.fullName });
+      await sendEmailVerification(userCredential.user);
       createUserDocument(userCredential.user, { name: values.fullName });
-      toast({ title: "Account Created", description: "Welcome to MemoDams!" })
-      router.push("/dashboard")
+      
+      toast({ 
+        title: "Account Created!", 
+        description: "Please check your inbox to verify your email address." 
+      });
+      
+      router.push("/dashboard");
+
     } catch (error: any) {
       console.error("Signup failed:", error)
       toast({
