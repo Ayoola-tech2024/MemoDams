@@ -58,6 +58,7 @@ export function CreateNoteButton() {
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
       userId: user.uid,
+      authorName: user.displayName || 'Anonymous',
       tagIds: [],
     };
     
@@ -89,11 +90,11 @@ export function CreateNoteButton() {
           <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Create Note</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Create New Note</DialogTitle>
           <DialogDescription>
-            Fill in the details for your new note. Click save when you're done.
+            Fill in the details for your new note. Markdown is supported. Click save when you're done.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -119,8 +120,8 @@ export function CreateNoteButton() {
                   <FormLabel>Content</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Start writing your thoughts here..."
-                      className="resize-none"
+                      placeholder="Start writing your thoughts here... You can use **Markdown**!"
+                      className="resize-none h-48 font-mono"
                       {...field}
                     />
                   </FormControl>

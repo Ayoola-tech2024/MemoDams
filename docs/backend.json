@@ -86,6 +86,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "sharedId": {
+            "type": "string",
+            "description": "The ID of the corresponding document in the `sharedNotes` collection if the note is public."
         }
       },
       "required": [
@@ -96,6 +100,21 @@
         "createdAt",
         "updatedAt"
       ]
+    },
+    "SharedNote": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Shared Note",
+      "type": "object",
+      "description": "A public, read-only copy of a user's note.",
+      "properties": {
+        "originalNoteId": { "type": "string" },
+        "originalUserId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
     },
     "Tag": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -189,7 +208,14 @@
           "entityName": "User",
           "schema": {
             "$ref": "#/backend/entities/User"
-          }
+          },
+          "description": "Stores user profile information. The 'userId' parameter corresponds to the Firebase Auth UID.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user, matching their Firebase Auth UID."
+            }
+          ]
         }
       },
       {
@@ -198,7 +224,32 @@
           "entityName": "Note",
           "schema": {
             "$ref": "#/backend/entities/Note"
-          }
+          },
+          "description": "Stores notes created by a specific user. The 'userId' path parameter ensures that only the authenticated user can access their own notes.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user, matching their Firebase Auth UID."
+            },
+            {
+              "name": "noteId",
+              "description": "The unique identifier for the note."
+            }
+          ]
+        }
+      },
+       {
+        "path": "/sharedNotes/{noteId}",
+        "definition": {
+          "entityName": "SharedNote",
+          "schema": { "$ref": "#/backend/entities/SharedNote" },
+          "description": "Stores public, read-only copies of notes. Anyone can read these documents, but only the server can write to them.",
+           "params": [
+            {
+              "name": "noteId",
+              "description": "The unique identifier for the shared note."
+            }
+          ]
         }
       },
       {
@@ -207,7 +258,18 @@
           "entityName": "Tag",
           "schema": {
             "$ref": "#/backend/entities/Tag"
-          }
+          },
+          "description": "Stores tags created by a specific user. The 'userId' path parameter ensures that only the authenticated user can access their own tags.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user, matching their Firebase Auth UID."
+            },
+            {
+              "name": "tagId",
+              "description": "The unique identifier for the tag."
+            }
+          ]
         }
       },
       {
@@ -216,9 +278,21 @@
           "entityName": "File",
           "schema": {
             "$ref": "#/backend/entities/File"
-          }
+          },
+          "description": "Stores files uploaded by a specific user. The 'userId' path parameter ensures that only the authenticated user can access their own files.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user, matching their Firebase Auth UID."
+            },
+            {
+              "name": "fileId",
+              "description": "The unique identifier for the file."
+            }
+          ]
         }
       }
-    ]
+    ],
+    "reasoning": "The Firestore structure is designed to ensure data isolation and security by leveraging path-based ownership and denormalization for authorization independence. Each user's data (notes, tags, files) is stored under their unique user ID, enabling simple and secure security rules. This design avoids complex `get()` calls in security rules, ensuring atomic operations and easier debugging.  Specifically:\n\n*   **/users/{userId}**: Stores user profile information.\n*   **/users/{userId}/notes/{noteId}**: Stores notes created by a specific user.\n*   **/users/{userId}/tags/{tagId}**: Stores tags created by a specific user.\n*   **/users/{userId}/files/{fileId}**: Stores files uploaded by a specific user.\n\nThis structure supports secure list operations (QAPs) by ensuring that each collection contains documents with the same security posture: only the user identified by `{userId}` can access the data within that branch. There's no need to filter based on user ID within the rules, as the path inherently defines ownership.  Authorization Independence is achieved because rules only need to validate `request.auth.uid` against the `{userId}` path parameter; no parent document reads are necessary."
   }
 }

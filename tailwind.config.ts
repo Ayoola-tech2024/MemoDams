@@ -71,6 +71,49 @@ export default {
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
       },
+       typography: (theme: (arg0: string) => any) => ({
+        DEFAULT: {
+          css: {
+            color: theme('colors.foreground'),
+            a: {
+              color: theme('colors.primary.DEFAULT'),
+              '&:hover': {
+                color: theme('colors.primary.DEFAULT'),
+              },
+            },
+            'h1,h2,h3,h4': {
+              color: theme('colors.foreground'),
+            },
+            blockquote: {
+              color: theme('colors.muted.foreground'),
+              borderLeftColor: theme('colors.border'),
+            },
+            'ul > li::before': {
+              backgroundColor: theme('colors.foreground'),
+            },
+             'ol > li::before': {
+              color: theme('colors.muted.foreground'),
+            },
+            'thead': {
+              color: theme('colors.foreground'),
+              borderBottomColor: theme('colors.border'),
+            },
+            'tbody tr': {
+              borderBottomColor: theme('colors.border'),
+            },
+             code: {
+              color: theme('colors.accent.foreground'),
+              backgroundColor: theme('colors.accent.DEFAULT'),
+              padding: '2px 4px',
+              borderRadius: '4px',
+            },
+            'pre code': {
+               color: theme('colors.foreground'),
+               backgroundColor: 'transparent',
+            }
+          },
+        },
+      }),
       keyframes: {
         'accordion-down': {
           from: {
@@ -101,7 +144,5 @@ export default {
       },
     },
   },
-  plugins: [require('tailwindcss-animate')],
+  plugins: [require('tailwindcss-animate'), require('@tailwindcss/typography')],
 } satisfies Config;
-
-    

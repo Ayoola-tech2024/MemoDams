@@ -4,7 +4,7 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { PlusCircle, ListFilter, NotebookPen } from "lucide-react"
+import { PlusCircle, ListFilter, NotebookPen, Globe } from "lucide-react"
 import Link from 'next/link'
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useCollection, useFirestore, useUser, useMemoFirebase } from "@/firebase";
@@ -19,6 +19,7 @@ interface Note {
   content: string;
   createdAt: { seconds: number; nanoseconds: number; };
   tags?: string[];
+  sharedId?: string;
 }
 
 function NoteSkeleton() {
@@ -92,26 +93,31 @@ export default function NotesPage() {
       {!isLoading && notes && notes.length > 0 && (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {notes.map((note) => (
-            <Card key={note.id} className="flex flex-col transform-gpu transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/20">
-              <CardHeader>
-                <CardTitle>{note.title}</CardTitle>
-                 <CardDescription>
-                  {note.createdAt ? format(new Date(note.createdAt.seconds * 1000), "PPp") : 'No date'}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex-grow">
-                <p className="line-clamp-4 text-sm text-muted-foreground">{note.content}</p>
-              </CardContent>
-              <CardFooter>
-                 {note.tags && note.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {note.tags.map(tag => (
-                      <Badge key={tag} variant="secondary" className="font-normal">{tag}</Badge>
-                    ))}
+            <Link key={note.id} href={`/dashboard/notes/${note.id}`} className="flex">
+              <Card className="flex flex-col w-full transform-gpu transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/20">
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <CardTitle className="truncate pr-2">{note.title}</CardTitle>
+                    {note.sharedId && <Globe className="h-4 w-4 text-primary shrink-0" />}
                   </div>
-                )}
-              </CardFooter>
-            </Card>
+                   <CardDescription>
+                    {note.createdAt ? format(new Date(note.createdAt.seconds * 1000), "PPp") : 'No date'}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex-grow">
+                  <p className="line-clamp-4 text-sm text-muted-foreground">{note.content}</p>
+                </CardContent>
+                <CardFooter>
+                   {note.tags && note.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {note.tags.map(tag => (
+                        <Badge key={tag} variant="secondary" className="font-normal">{tag}</Badge>
+                      ))}
+                    </div>
+                  )}
+                </CardFooter>
+              </Card>
+            </Link>
           ))}
         </div>
       )}
