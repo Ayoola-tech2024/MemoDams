@@ -103,15 +103,15 @@ export default function DashboardPage() {
       setIsLoadingCounts(true);
       try {
         const notesQuery = query(collection(firestore, 'users', user.uid, 'notes'));
-        const photosQuery = query(collection(firestore, 'users', user.uid, 'files'), where("fileType", ">=", "image/"), where("fileType", "<", "image/~"));
-        const videosQuery = query(collection(firestore, 'users', user.uid, 'files'), where("fileType", ">=", "video/"), where("fileType", "<", "video/~"));
-        const filesQuery = query(collection(firestore, 'users', user.uid, 'files'));
+        const photosQuery = query(collection(firestore, 'users', user.uid, 'files'), where("fileType", "in", ["image/jpeg", "image/png", "image/gif", "image/webp"]));
+        const videosQuery = query(collection(firestore, 'users', user.uid, 'files'), where("fileType", "in", ["video/mp4", "video/webm", "video/ogg"]));
+        const allFilesQuery = query(collection(firestore, 'users', user.uid, 'files'));
 
         const [notesSnap, photosSnap, videosSnap, filesSnap] = await Promise.all([
           getCountFromServer(notesQuery),
           getCountFromServer(photosQuery),
           getCountFromServer(videosQuery),
-          getCountFromServer(filesQuery),
+          getCountFromServer(allFilesQuery),
         ]);
         
         setCounts({
