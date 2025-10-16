@@ -41,9 +41,13 @@
           "description": "User's birthday.",
           "format": "date"
         },
-        "phoneNumber": {
+        "secretQuestion": {
             "type": "string",
-            "description": "User's phone number for custom account verification."
+            "description": "The secret question chosen by the user for account recovery/verification."
+        },
+        "secretAnswer": {
+            "type": "string",
+            "description": "The user's answer to their secret question. This should be handled securely."
         }
       },
       "required": [

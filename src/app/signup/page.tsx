@@ -16,9 +16,9 @@ import { useAuth, useUser, useFirestore, FirestorePermissionError, errorEmitter 
 import { createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, updateProfile, User } from "firebase/auth"
 import { useEffect, useState } from "react"
 import { useToast } from "@/hooks/use-toast"
-import { Eye, EyeOff, Phone } from "lucide-react"
+import { Eye, EyeOff } from "lucide-react"
 import { doc, setDoc, serverTimestamp } from "firebase/firestore"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { SecurityQuestionDialog } from "../dashboard/settings/security-question-dialog"
 
 function GoogleIcon() {
   return (
@@ -37,10 +37,6 @@ const formSchema = z.object({
   password: z.string().min(6, { message: "Password must be at least 6 characters." }),
 })
 
-const phoneSchema = z.object({
-    phoneNumber: z.string().min(10, { message: "Please enter a valid phone number." }),
-})
-
 export default function SignupPage() {
   const router = useRouter()
   const auth = useAuth()
@@ -48,7 +44,7 @@ export default function SignupPage() {
   const { user, isUserLoading } = useUser()
   const { toast } = useToast()
   const [showPassword, setShowPassword] = useState(false);
-  const [isPhonePromptOpen, setIsPhonePromptOpen] = useState(false);
+  const [isSecurityQuestionOpen, setIsSecurityQuestionOpen] = useState(false);
   const [newlySignedUpUser, setNewlySignedUpUser] = useState<User | null>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -59,14 +55,6 @@ export default function SignupPage() {
       password: "",
     },
   })
-
-   const phoneForm = useForm<z.infer<typeof phoneSchema>>({
-    resolver: zodResolver(phoneSchema),
-    defaultValues: {
-        phoneNumber: "",
-    },
-  });
-
 
   useEffect(() => {
     if (user && !isUserLoading) {
@@ -86,8 +74,6 @@ export default function SignupPage() {
     };
     try {
         await setDoc(userRef, userData, { merge: true });
-        // For simulation purposes, let's also save to local storage
-        localStorage.setItem(`user-profile-${user.uid}`, JSON.stringify(userData));
     } catch(error) {
         const permissionError = new FirestorePermissionError({
             path: userRef.path,
@@ -99,6 +85,7 @@ export default function SignupPage() {
   }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!auth) return;
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password)
       await updateProfile(userCredential.user, { displayName: values.fullName });
@@ -110,7 +97,7 @@ export default function SignupPage() {
       });
       
       setNewlySignedUpUser(userCredential.user);
-      setIsPhonePromptOpen(true);
+      setIsSecurityQuestionOpen(true);
 
     } catch (error: any) {
       console.error("Signup failed:", error)
@@ -123,15 +110,17 @@ export default function SignupPage() {
   }
 
   async function handleGoogleSignIn() {
+    if (!auth) return;
     try {
       const provider = new GoogleAuthProvider()
       const result = await signInWithPopup(auth, provider)
       await createUserDocument(result.user);
       
       toast({ title: "Account Created", description: "Welcome to MemoDams!" });
-
+      
       setNewlySignedUpUser(result.user);
-      setIsPhonePromptOpen(true);
+      setIsSecurityQuestionOpen(true);
+
     } catch (error: any) {
       console.error("Google sign-in failed:", error)
       toast({
@@ -141,35 +130,10 @@ export default function SignupPage() {
       })
     }
   }
-
-  const handleSkipPhone = () => {
-    setIsPhonePromptOpen(false);
+  
+  const handleDialogClose = () => {
+    setIsSecurityQuestionOpen(false);
     router.push("/dashboard");
-  }
-
-  const handlePhoneSubmit = async (values: z.infer<typeof phoneSchema>) => {
-    if (!newlySignedUpUser || !firestore) return;
-
-    const userRef = doc(firestore, 'users', newlySignedUpUser.uid);
-    try {
-        await setDoc(userRef, { phoneNumber: values.phoneNumber }, { merge: true });
-        // For simulation
-        const profile = JSON.parse(localStorage.getItem(`user-profile-${newlySignedUpUser.uid}`) || '{}');
-        profile.phoneNumber = values.phoneNumber;
-        localStorage.setItem(`user-profile-${newlySignedUpUser.uid}`, JSON.stringify(profile));
-
-        toast({
-            title: "Phone Number Added",
-            description: "Your phone number has been saved for account security."
-        });
-        handleSkipPhone();
-    } catch(error) {
-         toast({
-            variant: "destructive",
-            title: "Error",
-            description: "Could not save your phone number.",
-        });
-    }
   }
 
 
@@ -268,46 +232,15 @@ export default function SignupPage() {
         </div>
         </div>
 
-        <Dialog open={isPhonePromptOpen} onOpenChange={(open) => { if(!open) handleSkipPhone()}}>
-            <DialogContent className="sm:max-w-md">
-                 <Form {...phoneForm}>
-                    <form onSubmit={phoneForm.handleSubmit(handlePhoneSubmit)}>
-                        <DialogHeader>
-                            <DialogTitle className="flex items-center gap-2">
-                                <Phone className="h-5 w-5" />
-                                One More Step (Optional)
-                            </DialogTitle>
-                            <DialogDescription>
-                                Add a phone number for enhanced account security. You'll be asked for this number when logging in on new devices.
-                            </DialogDescription>
-                        </DialogHeader>
-                        <div className="py-4">
-                            <FormField
-                                control={phoneForm.control}
-                                name="phoneNumber"
-                                render={({ field }) => (
-                                    <FormItem className="grid gap-2">
-                                    <FormLabel>Phone Number</FormLabel>
-                                    <FormControl>
-                                        <Input placeholder="+1 555 123 4567" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        </div>
-                        <DialogFooter className="sm:justify-between">
-                             <Button type="button" variant="ghost" onClick={handleSkipPhone}>
-                                Skip for Now
-                            </Button>
-                            <Button type="submit" disabled={phoneForm.formState.isSubmitting}>
-                                {phoneForm.formState.isSubmitting ? "Saving..." : "Save Phone Number"}
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </Form>
-            </DialogContent>
-        </Dialog>
+        {newlySignedUpUser && (
+            <SecurityQuestionDialog
+                user={newlySignedUpUser}
+                open={isSecurityQuestionOpen}
+                onOpenChange={setIsSecurityQuestionOpen}
+                onFinished={handleDialogClose}
+                isInitialSetup={true}
+            />
+        )}
     </>
   )
 }

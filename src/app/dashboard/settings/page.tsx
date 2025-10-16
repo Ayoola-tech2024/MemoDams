@@ -14,7 +14,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useTheme } from "next-themes"
-import { Sun, Moon, Laptop, Trash2, Mail, MessageSquare, Eye, EyeOff, CalendarIcon, Phone } from "lucide-react"
+import { Sun, Moon, Laptop, Trash2, Mail, MessageSquare, Eye, EyeOff, CalendarIcon, ShieldQuestion } from "lucide-react"
 import Link from "next/link";
 import {
   AlertDialog,
@@ -28,7 +28,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast";
-import { useUser } from "@/firebase"
+import { useUser, useAuth, useFirestore, useDoc, useMemoFirebase } from "@/firebase"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -45,7 +45,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { useAuth, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
+import { SecurityQuestionDialog } from "./security-question-dialog"
 
 
 const profileSchema = z.object({
@@ -479,14 +479,21 @@ export default function SettingsPage() {
                 )}
                  <div className="flex items-center justify-between">
                     <div>
-                        <Label>Phone Number</Label>
+                        <Label>Security Question</Label>
                         <p className="text-xs text-muted-foreground">
-                            {userProfile?.phoneNumber ? `Enrolled number: ${userProfile.phoneNumber}` : "No phone number added."}
+                             {userProfile?.secretQuestion ? `Question set: "${userProfile.secretQuestion}"` : "Add an extra layer of security for new devices."}
                         </p>
                     </div>
-                    <Button variant="outline" disabled>
-                        {userProfile?.phoneNumber ? "Change Number" : "Add Number"}
-                    </Button>
+                     <SecurityQuestionDialog 
+                        user={user} 
+                        userProfile={userProfile}
+                        trigger={
+                            <Button variant="outline">
+                                <ShieldQuestion className="mr-2 h-4 w-4" />
+                                {userProfile?.secretQuestion ? "Change Question" : "Set Question"}
+                            </Button>
+                        }
+                    />
                 </div>
             </CardContent>
         </Card>

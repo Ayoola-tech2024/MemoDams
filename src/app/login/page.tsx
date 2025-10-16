@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import Link from "next/link"
@@ -12,9 +11,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Logo } from "@/components/logo"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase"
+import { useAuth, useUser, useFirestore } from "@/firebase"
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth"
-import { doc } from "firebase/firestore"
+import { doc, getDoc } from "firebase/firestore"
 import { useEffect, useState } from "react"
 import { useToast } from "@/hooks/use-toast"
 import { Eye, EyeOff } from "lucide-react"
@@ -53,7 +52,6 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (user && !isUserLoading) {
-        // Clear any pending verification state
         sessionStorage.removeItem('pending-verification-uid');
         router.push("/dashboard")
     }
@@ -61,26 +59,17 @@ export default function LoginPage() {
 
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!auth || !firestore) return;
     try {
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
       const userDocRef = doc(firestore, "users", userCredential.user.uid);
-      const userDoc = await (await fetch(userDocRef.path)).json(); // A simplified way to get doc data server-side or client-side
-      
-      // In a real app, you would fetch the document from Firestore.
-      // For this simulation, we'll assume a way to check for phoneNumber.
-      // This is a placeholder for `getDoc`
-      const mockGetDoc = async (ref: any) => {
-          const storedUser = localStorage.getItem(`user-profile-${ref.id}`);
-          if (storedUser) return { exists: () => true, data: () => JSON.parse(storedUser) };
-          return { exists: () => false };
-      }
-      
-      const userProfileSnap = await mockGetDoc({ id: userCredential.user.uid });
+      const userDocSnap = await getDoc(userDocRef);
 
-      if (userProfileSnap.exists() && userProfileSnap.data().phoneNumber) {
-        // Store UID and redirect to custom verification page
+      const deviceVerifiedKey = `device-verified-${userCredential.user.uid}`;
+
+      if (userDocSnap.exists() && userDocSnap.data().secretQuestion && !localStorage.getItem(deviceVerifiedKey)) {
         sessionStorage.setItem('pending-verification-uid', userCredential.user.uid);
-        router.push('/login/verify-phone-number');
+        router.push('/login/verify-security-question');
       } else {
         toast({ title: "Login Successful", description: "Welcome back!" });
         router.push("/dashboard");
@@ -96,10 +85,12 @@ export default function LoginPage() {
   }
 
   async function handleGoogleSignIn() {
+    if (!auth || !firestore) return;
     try {
       const provider = new GoogleAuthProvider()
-      await signInWithPopup(auth, provider)
-      // Google sign-in doesn't require the custom phone verification step
+      const result = await signInWithPopup(auth, provider)
+      // For Google sign-in, we can consider the device verified or skip the check.
+      // For simplicity, we'll skip it.
       toast({ title: "Login Successful", description: "Welcome back!" })
       router.push("/dashboard")
     } catch (error: any) {
