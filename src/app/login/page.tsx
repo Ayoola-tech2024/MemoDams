@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Logo } from "@/components/logo"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { useAuth, useUser } from "@/firebase"
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, UserCredential } from "firebase/auth"
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, UserCredential, getMultiFactorResolver, MultiFactorError } from "firebase/auth"
 import { useEffect, useState } from "react"
 import { useToast } from "@/hooks/use-toast"
 import { Eye, EyeOff } from "lucide-react"
@@ -64,12 +64,24 @@ export default function LoginPage() {
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password)
       handleSuccessfulLogin(userCredential);
     } catch (error: any) {
-      console.error("Login failed:", error)
-      toast({
-        variant: "destructive",
-        title: "Login Failed",
-        description: error.message || "An unexpected error occurred.",
-      })
+      if (error.code === 'auth/multi-factor-required') {
+        const resolver = getMultiFactorResolver(auth, error);
+        // Store resolver in session storage to use in the verification page
+        sessionStorage.setItem('mfaResolver', JSON.stringify(resolver));
+        // We only support TOTP for now
+        const hint = resolver.hints.find(h => h.factorId === 'totp');
+        if (hint) {
+           sessionStorage.setItem('mfaHint', JSON.stringify(hint));
+        }
+        router.push('/login/verify-mfa');
+      } else {
+        console.error("Login failed:", error)
+        toast({
+          variant: "destructive",
+          title: "Login Failed",
+          description: error.message || "An unexpected error occurred.",
+        })
+      }
     }
   }
 
@@ -180,3 +192,5 @@ export default function LoginPage() {
     </div>
   )
 }
+
+    

@@ -13,7 +13,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useTheme } from "next-themes"
-import { Sun, Moon, Laptop, User, Trash2, Mail, MessageSquare, Eye, EyeOff, CalendarIcon, Send } from "lucide-react"
+import { Sun, Moon, Laptop, User, Trash2, Mail, MessageSquare, Eye, EyeOff, CalendarIcon, Send, ShieldCheck } from "lucide-react"
 import Link from "next/link";
 import {
   AlertDialog,
@@ -27,11 +27,11 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast";
-import { useUser, useFirestore, useDoc, useMemoFirebase, FirestorePermissionError, errorEmitter } from "@/firebase"
+import { useUser } from "@/firebase"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth"
+import { updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider, multiFactor, TotpMultiFactorGenerator } from "firebase/auth"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -44,6 +44,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { useAuth, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
+import { Enable2faDialog, Disable2faDialog } from "./2fa-dialogs";
 
 
 const profileSchema = z.object({
@@ -65,6 +67,7 @@ export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();
   const { user } = useUser()
+  const auth = useAuth()
   const firestore = useFirestore();
   const router = useRouter();
 
@@ -82,6 +85,10 @@ export default function SettingsPage() {
   }, [user, firestore]);
 
   const { data: userProfile, isLoading: isLoadingProfile } = useDoc(userProfileRef);
+  
+  const is2faEnabled = useMemo(() => {
+    return user?.multiFactor?.enrolledFactors.length > 0;
+  }, [user]);
   
   const profileForm = useForm<z.infer<typeof profileSchema>>({
     resolver: zodResolver(profileSchema),
@@ -472,6 +479,34 @@ export default function SettingsPage() {
             </Form>
             </Card>
         )}
+        
+        {isPasswordProvider && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Two-Factor Authentication</CardTitle>
+              <CardDescription>
+                Add an additional layer of security to your account.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {is2faEnabled ? (
+                <div className="flex items-center gap-2 text-green-600">
+                  <ShieldCheck className="h-5 w-5" />
+                  <p className="font-medium">2FA is enabled.</p>
+                </div>
+              ) : (
+                <p className="text-muted-foreground">Two-Factor Authentication is currently disabled.</p>
+              )}
+            </CardContent>
+            <CardFooter className="border-t px-6 py-4">
+              {!is2faEnabled ? (
+                <Enable2faDialog user={user} />
+              ) : (
+                <Disable2faDialog user={user} />
+              )}
+            </CardFooter>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>
@@ -558,7 +593,7 @@ export default function SettingsPage() {
                     <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                     <AlertDialogDescription>
                       This action cannot be undone. This will permanently delete your account and remove your data from our servers.
-                    </AlertDialogDescription>
+                    </dixalogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -574,3 +609,5 @@ export default function SettingsPage() {
     </>
   )
 }
+
+    
