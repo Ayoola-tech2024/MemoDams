@@ -30,10 +30,6 @@
           "description": "URL of the user's profile picture.",
           "format": "uri"
         },
-        "isEmailVerified": {
-          "type": "boolean",
-          "description": "Indicates whether the user's email address has been verified."
-        },
         "createdAt": {
           "type": "string",
           "description": "Timestamp indicating when the user account was created.",
@@ -176,6 +172,45 @@
         "url",
         "uploadDate"
       ]
+    },
+    "Conversation": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Conversation",
+      "type": "object",
+      "description": "Represents a messaging conversation between two or more users.",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the conversation." },
+        "participantIds": {
+          "type": "array",
+          "description": "Array of user IDs participating in the conversation.",
+          "items": { "type": "string" }
+        },
+        "lastMessage": {
+          "type": "object",
+          "properties": {
+            "text": { "type": "string", "description": "The text of the last message." },
+            "senderId": { "type": "string", "description": "The ID of the user who sent the last message." },
+            "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp of the last message." }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp when the conversation was created." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Timestamp when the conversation was last updated." }
+      },
+      "required": ["id", "participantIds", "createdAt", "updatedAt"]
+    },
+    "Message": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Message",
+      "type": "object",
+      "description": "Represents a single message within a conversation.",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the message." },
+        "conversationId": { "type": "string", "description": "The ID of the conversation this message belongs to." },
+        "senderId": { "type": "string", "description": "The ID of the user who sent the message." },
+        "text": { "type": "string", "description": "The content of the message." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp when the message was sent." }
+      },
+      "required": ["id", "conversationId", "senderId", "text", "createdAt"]
     }
   },
   "auth": {
@@ -262,8 +297,35 @@
             }
           ]
         }
+      },
+      {
+        "path": "/conversations/{conversationId}",
+        "definition": {
+          "entityName": "Conversation",
+          "schema": {
+            "$ref": "#/backend/entities/Conversation"
+          },
+          "description": "Stores conversation metadata. Access is restricted to participants.",
+          "params": [{"name": "conversationId", "description": "The unique identifier for the conversation."}]
+        }
+      },
+      {
+        "path": "/conversations/{conversationId}/messages/{messageId}",
+        "definition": {
+          "entityName": "Message",
+          "schema": {
+            "$ref": "#/backend/entities/Message"
+          },
+          "description": "Stores messages for a specific conversation. Access is restricted to participants of the parent conversation.",
+          "params": [
+            {"name": "conversationId", "description": "The unique identifier for the conversation."},
+            {"name": "messageId", "description": "The unique identifier for the message."}
+          ]
+        }
       }
     ],
-    "reasoning": "The Firestore structure is designed to ensure data isolation and security by leveraging path-based ownership and denormalization for authorization independence. Each user's data (notes, tags, files) is stored under their unique user ID, enabling simple and secure security rules. This design avoids complex `get()` calls in security rules, ensuring atomic operations and easier debugging.  Specifically:\n\n*   **/users/{userId}**: Stores user profile information.\n*   **/users/{userId}/notes/{noteId}**: Stores notes created by a specific user.\n*   **/users/{userId}/tags/{tagId}**: Stores tags created by a specific user.\n*   **/users/{userId}/files/{fileId}**: Stores files uploaded by a specific user.\n\nThis structure supports secure list operations (QAPs) by ensuring that each collection contains documents with the same security posture: only the user identified by `{userId}` can access the data within that branch. There's no need to filter based on user ID within the rules, as the path inherently defines ownership.  Authorization Independence is achieved because rules only need to validate `request.auth.uid` against the `{userId}` path parameter; no parent document reads are necessary."
+    "reasoning": "The Firestore structure is designed to ensure data isolation and security by leveraging path-based ownership and denormalization for authorization independence. Each user's data (notes, tags, files) is stored under their unique user ID, enabling simple and secure security rules. This design avoids complex `get()` calls in security rules, ensuring atomic operations and easier debugging. The messaging feature adds a top-level `conversations` collection where each document contains participant IDs, allowing rules to grant access only to those users. Messages are a sub-collection, inheriting the parent conversation's security context."
   }
 }
+
+    
