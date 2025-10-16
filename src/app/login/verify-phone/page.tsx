@@ -4,7 +4,7 @@
 import { useEffect, useState, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/firebase';
-import { getMultiFactorResolver, PhoneAuthProvider, PhoneMultiFactorGenerator, MultiFactorResolver, MultiFactorError } from 'firebase/auth';
+import { getMultiFactorResolver, PhoneAuthProvider, PhoneMultiFactorGenerator, MultiFactorResolver, MultiFactorError, RecaptchaVerifier } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
+
+declare global {
+  interface Window {
+    recaptchaVerifier?: RecaptchaVerifier;
+  }
+}
 
 const verifyMfaSchema = z.object({
   code: z.string().length(6, "Verification code must be 6 digits."),
@@ -41,29 +47,44 @@ function VerifyPhoneComponent() {
   });
 
   useEffect(() => {
+    if (!auth) return;
     if (!mfaResolver) {
       toast({ variant: 'destructive', title: 'Invalid session. Please log in again.' });
       router.replace('/login');
       return;
     }
 
+    if (!window.recaptchaVerifier) {
+      window.recaptchaVerifier = new RecaptchaVerifier(
+        auth,
+        'recaptcha-container',
+        {
+          size: 'invisible',
+          callback: () => {},
+        }
+      );
+    }
+    
     const phoneInfo = mfaResolver.hints[0];
     const phoneAuthProvider = new PhoneAuthProvider(auth);
 
-    phoneAuthProvider.verifyPhoneNumber(phoneInfo, window.recaptchaVerifier)
-      .then(newVerificationId => {
-        setVerificationId(newVerificationId);
-        toast({ title: 'Verification code sent', description: `A code has been sent to ${phoneInfo.phoneNumber}.` });
-      })
-      .catch(error => {
-        console.error("SMS verification sending failed:", error);
-        toast({ variant: 'destructive', title: 'Could not send verification code' });
-        router.replace('/login');
-      });
+    window.recaptchaVerifier.render().then((widgetId) => {
+        phoneAuthProvider.verifyPhoneNumber(phoneInfo, window.recaptchaVerifier!)
+        .then(newVerificationId => {
+            setVerificationId(newVerificationId);
+            toast({ title: 'Verification code sent', description: `A code has been sent to ${phoneInfo.phoneNumber}.` });
+        })
+        .catch(error => {
+            console.error("SMS verification sending failed:", error);
+            toast({ variant: 'destructive', title: 'Could not send verification code' });
+            router.replace('/login');
+        });
+    });
+
   }, [mfaResolver, auth, router, toast]);
 
   const onSubmit = async (values: z.infer<typeof verifyMfaSchema>) => {
-    if (!verificationId || !mfaResolver) return;
+    if (!verificationId || !mfaResolver || !auth) return;
 
     setIsSubmitting(true);
     try {

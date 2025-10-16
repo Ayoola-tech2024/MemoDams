@@ -24,7 +24,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { User, multiFactor, PhoneAuthProvider, PhoneMultiFactorGenerator, ConfirmationResult, MultiFactorUser, MultiFactorInfo } from "firebase/auth";
+import { User, multiFactor, PhoneAuthProvider, PhoneMultiFactorGenerator, ConfirmationResult, MultiFactorUser, MultiFactorInfo, RecaptchaVerifier } from "firebase/auth";
 import { Loader2, ShieldCheck, ShieldOff, Phone } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -32,6 +32,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/firebase";
+
+declare global {
+  interface Window {
+    recaptchaVerifier?: RecaptchaVerifier;
+    confirmationResult?: ConfirmationResult;
+  }
+}
 
 interface PhoneAuthDialogProps {
   user: User;
@@ -49,7 +56,6 @@ const verifyCodeSchema = z.object({
 export function PhoneAuthDialog({ user, enrolledFactors }: PhoneAuthDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState<"addPhone" | "verifyCode">("addPhone");
-  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isUnenrolling, setIsUnenrolling] = useState(false);
   const router = useRouter();
@@ -66,26 +72,15 @@ export function PhoneAuthDialog({ user, enrolledFactors }: PhoneAuthDialogProps)
   });
 
   const onAddPhone = async (values: z.infer<typeof addPhoneSchema>) => {
+    if (!auth) return;
     setIsVerifying(true);
     try {
-      const phoneAuthProvider = new PhoneAuthProvider(auth);
-      const verificationId = await phoneAuthProvider.verifyPhoneNumber(
+      const phoneProvider = new PhoneAuthProvider(auth);
+      window.confirmationResult = await phoneProvider.verifyPhoneNumber(
         values.phoneNumber,
-        window.recaptchaVerifier
+        window.recaptchaVerifier!
       );
 
-      const multiFactorAssertion = PhoneMultiFactorGenerator.assertion(
-        PhoneAuthProvider.credential(verificationId, "")
-      );
-
-      const session = await multiFactor(user).getSession();
-      const phoneAuthCredential = PhoneAuthProvider.credential(verificationId, "");
-
-      const confirmation = await multiFactor(user).enroll(
-        PhoneMultiFactorGenerator.assertion(phoneAuthCredential),
-        'My-Phone-Number'
-      );
-      setConfirmationResult(confirmation);
       setStep("verifyCode");
       toast({ title: "Verification code sent", description: "Enter the code sent to your phone." });
     } catch (error: any) {
@@ -98,10 +93,13 @@ export function PhoneAuthDialog({ user, enrolledFactors }: PhoneAuthDialogProps)
   };
 
   const onVerifyCode = async (values: z.infer<typeof verifyCodeSchema>) => {
-    if (!confirmationResult) return;
+    if (!window.confirmationResult) return;
     setIsVerifying(true);
     try {
-      await confirmationResult.confirm(values.code);
+      const cred = PhoneAuthProvider.credential(window.confirmationResult.verificationId, values.code);
+      const multiFactorAssertion = PhoneMultiFactorGenerator.assertion(cred);
+      await multiFactor(user).enroll(multiFactorAssertion, 'My-Phone-Number');
+      
       toast({ title: "2FA Enabled", description: "Your phone number has been verified and enabled for 2FA.", className: "bg-green-500 text-white" });
       handleClose();
       router.refresh();
@@ -136,7 +134,7 @@ export function PhoneAuthDialog({ user, enrolledFactors }: PhoneAuthDialogProps)
         setStep("addPhone");
         phoneForm.reset();
         codeForm.reset();
-        setConfirmationResult(null);
+        window.confirmationResult = undefined;
         if (window.recaptchaVerifier) {
             window.recaptchaVerifier.clear();
         }
@@ -146,15 +144,15 @@ export function PhoneAuthDialog({ user, enrolledFactors }: PhoneAuthDialogProps)
   useEffect(() => {
     if (isOpen && step === "addPhone" && !isEnrolled) {
         if (!window.recaptchaVerifier) {
-            window.recaptchaVerifier = new window.firebase.auth.RecaptchaVerifier(
+            window.recaptchaVerifier = new RecaptchaVerifier(
+                auth,
                 'recaptcha-container',
                 {
                     'size': 'invisible',
                     'callback': () => {
                         // reCAPTCHA solved, allow signInWithPhoneNumber.
                     }
-                },
-                auth
+                }
             );
         }
         window.recaptchaVerifier.render().catch((err: any) => console.error("Recaptcha render error", err));
