@@ -49,24 +49,14 @@ export default function LoginPage() {
   })
 
   useEffect(() => {
-    if (user && !isUserLoading && user.emailVerified) {
+    if (user && !isUserLoading) {
       router.push("/dashboard")
     }
   }, [user, isUserLoading, router])
 
   const handleSuccessfulLogin = (userCredential: UserCredential) => {
-    const user = userCredential.user;
-    if (user.emailVerified) {
-      toast({ title: "Login Successful", description: "Welcome back!" });
-      router.push("/dashboard");
-    } else {
-      toast({ 
-        variant: "destructive",
-        title: "Email Not Verified", 
-        description: "Please check your inbox to verify your email address before logging in." 
-      });
-      router.push("/verify-email");
-    }
+    toast({ title: "Login Successful", description: "Welcome back!" });
+    router.push("/dashboard");
   };
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
@@ -86,7 +76,7 @@ export default function LoginPage() {
   async function handleGoogleSignIn() {
     try {
       const provider = new GoogleAuthProvider()
-      const userCredential = await signInWithPopup(auth, provider)
+      await signInWithPopup(auth, provider)
       // Google users are considered verified.
       toast({ title: "Login Successful", description: "Welcome back!" })
       router.push("/dashboard")
@@ -100,7 +90,7 @@ export default function LoginPage() {
     }
   }
 
-  if (isUserLoading || (user && user.emailVerified)) {
+  if (isUserLoading || user) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center bg-background">
         <p>Loading...</p>

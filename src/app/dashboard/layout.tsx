@@ -75,17 +75,6 @@ export default function DashboardLayout({
 
     if (!user) {
       router.push('/login');
-      return;
-    }
-
-    // Exempt users created before a specific date from email verification
-    const creationTime = user.metadata.creationTime ? new Date(user.metadata.creationTime) : new Date();
-    const cutoffDate = new Date('2025-10-18T00:00:00Z'); // Grandfathering cutoff date
-
-    const isLegacyUser = creationTime < cutoffDate;
-
-    if (!user.emailVerified && !isLegacyUser) {
-      router.push('/verify-email');
     }
   }, [user, isUserLoading, router]);
 
@@ -102,17 +91,8 @@ export default function DashboardLayout({
       });
     }
   };
-  
-  const isVerificationRequired = () => {
-    if (!user) return false;
-    const creationTime = user.metadata.creationTime ? new Date(user.metadata.creationTime) : new Date();
-    const cutoffDate = new Date('2025-10-18T00:00:00Z');
-    const isLegacyUser = creationTime < cutoffDate;
-    return !user.emailVerified && !isLegacyUser;
-  };
 
-  // Display a loading screen while checking auth state or if user is unverified (and needs to be)
-  if (isUserLoading || !user || isVerificationRequired()) {
+  if (isUserLoading || !user) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center bg-background">
         <p>Loading...</p>

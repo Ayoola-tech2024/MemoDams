@@ -72,15 +72,6 @@ export default function ProfilePage() {
                         <h2 className="text-xl font-semibold">{user?.displayName}</h2>
                         <div className="flex items-center gap-2">
                            <p className="text-sm text-muted-foreground">{user?.email}</p>
-                           {user?.emailVerified ? (
-                              <Badge variant="secondary" className="border-green-500/50 bg-green-500/10 text-green-700 dark:text-green-400">
-                                <BadgeCheck className="mr-1 h-3 w-3" /> Verified
-                              </Badge>
-                           ) : (
-                             <Badge variant="destructive" className="border-yellow-500/50 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400">
-                                <BadgeAlert className="mr-1 h-3 w-3" /> Not Verified
-                              </Badge>
-                           )}
                         </div>
                     </>
                  )}

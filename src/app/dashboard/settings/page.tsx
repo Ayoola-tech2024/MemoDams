@@ -31,7 +31,7 @@ import { useUser, useFirestore, useDoc, useMemoFirebase, FirestorePermissionErro
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider, sendEmailVerification } from "firebase/auth"
+import { updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -193,23 +193,6 @@ export default function SettingsPage() {
     })
   }
 
-  const handleResendVerification = async () => {
-    if (!user) return;
-    try {
-      await sendEmailVerification(user);
-      toast({
-        title: "Verification Email Sent",
-        description: "Please check your inbox to verify your email address.",
-      });
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Failed to Send Email",
-        description: error.message,
-      });
-    }
-  };
-
   const emailSubject = "Issue report from MemoDams";
   const whatsAppText = "Hello, I have a question about MemoDams.";
   const isPasswordProvider = user?.providerData.some((provider) => provider.providerId === "password");
@@ -259,12 +242,6 @@ export default function SettingsPage() {
                 <div className="grid gap-2">
                   <div className="flex items-center justify-between">
                      <Label htmlFor="email">Email</Label>
-                      {!user.emailVerified && isPasswordProvider && (
-                        <Button variant="link" size="sm" className="h-auto p-0" onClick={handleResendVerification}>
-                          <Send className="mr-2 h-3 w-3" />
-                          Resend Verification
-                        </Button>
-                      )}
                   </div>
                   <Input id="email" type="email" defaultValue={user.email || ""} readOnly />
                    <p className="text-xs text-muted-foreground mt-1">Email address cannot be changed.</p>

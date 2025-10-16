@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Logo } from "@/components/logo"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { useAuth, useUser, useFirestore, FirestorePermissionError, errorEmitter } from "@/firebase"
-import { createUserWithEmailAndPassword, sendEmailVerification, signInWithPopup, GoogleAuthProvider, updateProfile } from "firebase/auth"
+import { createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, updateProfile } from "firebase/auth"
 import { useEffect, useState } from "react"
 import { useToast } from "@/hooks/use-toast"
 import { Eye, EyeOff } from "lucide-react"
@@ -53,7 +53,7 @@ export default function SignupPage() {
   })
 
   useEffect(() => {
-    if (user && !isUserLoading && user.emailVerified) {
+    if (user && !isUserLoading) {
       router.push("/dashboard")
     }
   }, [user, isUserLoading, router])
@@ -66,7 +66,6 @@ export default function SignupPage() {
         email: user.email,
         createdAt: serverTimestamp(),
         profilePictureUrl: user.photoURL || '',
-        isEmailVerified: user.emailVerified,
         ...additionalData
     };
     setDoc(userRef, userData, { merge: true }).catch(error => {
@@ -83,15 +82,14 @@ export default function SignupPage() {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password)
       await updateProfile(userCredential.user, { displayName: values.fullName });
-      await sendEmailVerification(userCredential.user);
       createUserDocument(userCredential.user, { name: values.fullName });
       
       toast({ 
         title: "Account Created!", 
-        description: "Please check your inbox to verify your email address." 
+        description: "You have been successfully signed up." 
       });
       
-      router.push("/verify-email");
+      router.push("/dashboard");
 
     } catch (error: any) {
       console.error("Signup failed:", error)
@@ -120,7 +118,7 @@ export default function SignupPage() {
     }
   }
 
-  if (isUserLoading || (user && user.emailVerified)) {
+  if (isUserLoading || user) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center bg-background">
         <p>Loading...</p>
