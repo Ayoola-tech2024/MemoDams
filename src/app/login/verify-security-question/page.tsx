@@ -14,7 +14,7 @@ import { Logo } from '@/components/logo';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -32,6 +32,7 @@ export default function VerifySecurityQuestionPage() {
   const [secretQuestion, setSecretQuestion] = useState<string | null>(null);
   const [correctAnswer, setCorrectAnswer] = useState<string | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(true);
+  const [showAnswer, setShowAnswer] = useState(false);
 
   const form = useForm<z.infer<typeof verifyQuestionSchema>>({
     resolver: zodResolver(verifyQuestionSchema),
@@ -63,7 +64,9 @@ export default function VerifySecurityQuestionPage() {
                 setSecretQuestion(userDocSnap.data().secretQuestion);
                 setCorrectAnswer(userDocSnap.data().secretAnswer);
             } else {
-                toast({ variant: 'destructive', title: 'Security check not required.' });
+                // This case should ideally not happen if login flow is correct
+                // but as a fallback, we log them out.
+                toast({ variant: 'destructive', title: 'Security question not found.' });
                 await doLogout();
             }
             setIsLoadingData(false);
@@ -126,9 +129,20 @@ export default function VerifySecurityQuestionPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>{secretQuestion || <Skeleton className="h-5 w-3/4" />}</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Your answer" autoFocus />
-                      </FormControl>
+                       <div className="relative">
+                        <FormControl>
+                          <Input type={showAnswer ? "text" : "password"} {...field} placeholder="Your answer" autoFocus />
+                        </FormControl>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute inset-y-0 right-0 h-full px-3"
+                          onClick={() => setShowAnswer(!showAnswer)}
+                        >
+                          {showAnswer ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}

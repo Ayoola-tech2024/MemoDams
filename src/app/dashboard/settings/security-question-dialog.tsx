@@ -32,7 +32,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useFirestore } from '@/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { User, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
-import { Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 const questions = [
@@ -41,6 +41,11 @@ const questions = [
     "What was the name of your elementary school?",
     "In what city were you born?",
     "What is the name of your favorite childhood friend?",
+    "What was the model of your first car?",
+    "What is your favorite book?",
+    "What is the name of the street you grew up on?",
+    "What is your favorite movie?",
+    "What was your high school mascot?",
 ];
 
 const securityQuestionSchema = z.object({
@@ -77,6 +82,8 @@ export function SecurityQuestionDialog({
 }: SecurityQuestionDialogProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const [isConfirmingPassword, setIsConfirmingPassword] = useState(false);
+  const [showAnswer, setShowAnswer] = useState(false);
+  const [showConfirmAnswer, setShowConfirmAnswer] = useState(false);
   const firestore = useFirestore();
   const { toast } = useToast();
   const router = useRouter();
@@ -194,9 +201,20 @@ export function SecurityQuestionDialog({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Your Answer</FormLabel>
-                  <FormControl>
-                    <Input type="password" {...field} />
-                  </FormControl>
+                   <div className="relative">
+                    <FormControl>
+                        <Input type={showAnswer ? "text" : "password"} {...field} />
+                    </FormControl>
+                     <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute inset-y-0 right-0 h-full px-3"
+                        onClick={() => setShowAnswer(!showAnswer)}
+                      >
+                        {showAnswer ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}
@@ -207,9 +225,20 @@ export function SecurityQuestionDialog({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Confirm Answer</FormLabel>
-                  <FormControl>
-                    <Input type="password" {...field} />
-                  </FormControl>
+                  <div className="relative">
+                    <FormControl>
+                        <Input type={showConfirmAnswer ? "text" : "password"} {...field} />
+                    </FormControl>
+                     <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute inset-y-0 right-0 h-full px-3"
+                        onClick={() => setShowConfirmAnswer(!showConfirmAnswer)}
+                      >
+                        {showConfirmAnswer ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}
