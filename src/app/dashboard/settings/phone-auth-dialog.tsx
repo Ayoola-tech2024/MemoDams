@@ -66,9 +66,15 @@ export function PhoneAuthDialog({ user, enrolledFactors }: PhoneAuthDialogProps)
 
   const phoneForm = useForm<z.infer<typeof addPhoneSchema>>({
     resolver: zodResolver(addPhoneSchema),
+    defaultValues: {
+      phoneNumber: ""
+    }
   });
   const codeForm = useForm<z.infer<typeof verifyCodeSchema>>({
     resolver: zodResolver(verifyCodeSchema),
+    defaultValues: {
+      code: ""
+    }
   });
 
   const onAddPhone = async (values: z.infer<typeof addPhoneSchema>) => {
