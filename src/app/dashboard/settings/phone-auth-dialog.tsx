@@ -78,13 +78,13 @@ export function PhoneAuthDialog({ user, enrolledFactors }: PhoneAuthDialogProps)
   });
 
   const onAddPhone = async (values: z.infer<typeof addPhoneSchema>) => {
-    if (!auth) return;
+    if (!auth || !window.recaptchaVerifier) return;
     setIsVerifying(true);
     try {
       const phoneProvider = new PhoneAuthProvider(auth);
       window.confirmationResult = await phoneProvider.verifyPhoneNumber(
         values.phoneNumber,
-        window.recaptchaVerifier!
+        window.recaptchaVerifier
       );
 
       setStep("verifyCode");
@@ -143,27 +143,31 @@ export function PhoneAuthDialog({ user, enrolledFactors }: PhoneAuthDialogProps)
         window.confirmationResult = undefined;
         if (window.recaptchaVerifier) {
             window.recaptchaVerifier.clear();
+            window.recaptchaVerifier = undefined;
         }
     }, 300);
   }
 
   useEffect(() => {
     if (isOpen && step === "addPhone" && !isEnrolled) {
-        if (!window.recaptchaVerifier) {
-            window.recaptchaVerifier = new RecaptchaVerifier(
-                auth,
-                'recaptcha-container',
-                {
-                    'size': 'invisible',
-                    'callback': () => {
-                        // reCAPTCHA solved, allow signInWithPhoneNumber.
-                    }
-                }
-            );
-        }
-        window.recaptchaVerifier.render().catch((err: any) => console.error("Recaptcha render error", err));
+      if (auth && !window.recaptchaVerifier) {
+        window.recaptchaVerifier = new RecaptchaVerifier(
+          auth,
+          'recaptcha-container',
+          {
+            'size': 'invisible',
+            'callback': () => {
+              // reCAPTCHA solved, allow submission.
+            },
+          }
+        );
+        window.recaptchaVerifier.render().catch((err: any) => {
+          console.error("Recaptcha render error", err);
+          toast({ variant: "destructive", title: "reCAPTCHA Error", description: "Could not render reCAPTCHA. Please try again later." });
+        });
+      }
     }
-  }, [isOpen, step, isEnrolled, auth]);
+  }, [isOpen, step, isEnrolled, auth, toast]);
 
 
   if (isEnrolled) {
@@ -195,7 +199,10 @@ export function PhoneAuthDialog({ user, enrolledFactors }: PhoneAuthDialogProps)
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+        if (!open) handleClose();
+        setIsOpen(open);
+    }}>
       <DialogTrigger asChild>
         <Button>
           <ShieldCheck className="mr-2 h-4 w-4" />
@@ -212,10 +219,12 @@ export function PhoneAuthDialog({ user, enrolledFactors }: PhoneAuthDialogProps)
             }
           </DialogDescription>
         </DialogHeader>
+        
+        <div id="recaptcha-container" className="my-4"></div>
 
         {step === 'addPhone' && (
              <Form {...phoneForm}>
-                <form onSubmit={phoneForm.handleSubmit(onAddPhone)} className="space-y-4 py-4">
+                <form onSubmit={phoneForm.handleSubmit(onAddPhone)} className="space-y-4">
                     <FormField
                     control={phoneForm.control}
                     name="phoneNumber"
@@ -232,7 +241,6 @@ export function PhoneAuthDialog({ user, enrolledFactors }: PhoneAuthDialogProps)
                         </FormItem>
                     )}
                     />
-                     <div id="recaptcha-container"></div>
                      <DialogFooter>
                         <Button type="button" variant="ghost" onClick={handleClose}>Cancel</Button>
                         <Button type="submit" disabled={isVerifying}>
@@ -246,7 +254,7 @@ export function PhoneAuthDialog({ user, enrolledFactors }: PhoneAuthDialogProps)
 
         {step === 'verifyCode' && (
             <Form {...codeForm}>
-                <form onSubmit={codeForm.handleSubmit(onVerifyCode)} className="space-y-4 py-4">
+                <form onSubmit={codeForm.handleSubmit(onVerifyCode)} className="space-y-4">
                     <FormField
                     control={codeForm.control}
                     name="code"
