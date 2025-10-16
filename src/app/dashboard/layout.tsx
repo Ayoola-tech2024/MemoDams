@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -38,7 +39,6 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { signOut, type IdTokenResult } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
-import { DigitalClock } from '@/components/digital-clock';
 
 const navItems = [
   { href: '/dashboard', icon: Home, label: 'Dashboard' },
@@ -152,7 +152,6 @@ export default function DashboardLayout({
               </div>
             </form>
           </div>
-          <DigitalClock />
           <ThemeToggle />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
