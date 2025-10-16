@@ -1,17 +1,17 @@
+
 rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // Match any file path
+    // By default, deny all reads and writes
     match /{allPaths=**} {
-      // Deny all reads and writes by default
       allow read, write: if false;
     }
 
-    // Allow users to manage their own files
+    // Allow users to read and write to their own folder in storage.
+    // The path is expected to be 'users/{userId}/...'
     match /users/{userId}/{allPaths=**} {
-      // Allow read, write, and delete if the user is authenticated and the userId matches their uid
-      allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
   }
 }
