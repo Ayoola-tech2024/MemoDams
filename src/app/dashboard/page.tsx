@@ -9,13 +9,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { BookText, FileArchive, Image as ImageIcon, Video, ArrowRight, NotebookPen } from "lucide-react"
+import { BookText, FileArchive, Image as ImageIcon, Video, ArrowRight, NotebookPen, PartyPopper } from "lucide-react"
 import Link from 'next/link'
 import { useCollection, useDoc, useFirestore, useUser, useMemoFirebase } from "@/firebase"
 import { collection, query, where, orderBy, getCountFromServer, doc } from "firebase/firestore"
 import { useEffect, useState } from "react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { BirthdayGreeting } from "@/components/birthday-greeting"
+import { cn } from "@/lib/utils"
 
 interface OverviewItemProps {
   title: string;
@@ -60,6 +61,25 @@ type CountState = {
   photos: number;
   videos: number;
   files: number;
+}
+
+function BirthdayBanner({ name }: { name?: string | null }) {
+    return (
+        <div className="relative overflow-hidden rounded-lg bg-primary/10 p-4 text-center mb-6 border border-primary/20">
+             <div
+                aria-hidden="true"
+                className="absolute inset-0 z-0 grid grid-cols-2 -space-x-52 opacity-20"
+            >
+                <div className="h-60 bg-gradient-to-br from-primary to-purple-400 blur-3xl dark:h-96 animate-float"></div>
+                <div className="h-60 bg-gradient-to-r from-accent to-cyan-400 blur-3xl dark:h-96 animate-float" style={{ animationDelay: '3s' }}></div>
+            </div>
+            <div className="relative z-10">
+                <PartyPopper className="mx-auto h-8 w-8 text-primary animate-bounce" />
+                <h2 className="mt-2 text-xl font-bold text-primary">Happy Birthday, {name}!</h2>
+                <p className="text-sm text-primary/80">Hope you have a wonderful day filled with joy and celebration!</p>
+            </div>
+        </div>
+    );
 }
 
 export default function DashboardPage() {
@@ -139,14 +159,18 @@ export default function DashboardPage() {
     return today.getMonth() === birthDate.getMonth() && today.getDate() === birthDate.getDate();
   };
 
+  const isBirthdayToday = isBirthday();
+  const userName = user?.displayName?.split(' ')[0];
 
   return (
     <div className="animate-in fade-in duration-500">
-      {isBirthday() && <BirthdayGreeting name={user?.displayName?.split(' ')[0]} />}
+      {isBirthdayToday && <BirthdayGreeting name={userName} />}
+      {isBirthdayToday && <BirthdayBanner name={userName} />}
+      
       <div className="flex items-center justify-between">
         <div className="grid gap-1">
           <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
-            {greeting.text}, {user?.displayName?.split(' ')[0] || 'friend'}! {greeting.emoji}
+            {greeting.text}, {userName || 'friend'}! {greeting.emoji}
           </h1>
           <p className="text-muted-foreground">
              Today is {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.
