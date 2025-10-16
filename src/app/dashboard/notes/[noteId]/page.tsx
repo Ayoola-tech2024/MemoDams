@@ -28,7 +28,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -77,11 +77,21 @@ export default function NoteDetailPage() {
 
   const form = useForm<z.infer<typeof noteSchema>>({
     resolver: zodResolver(noteSchema),
-    values: {
-        title: note?.title || "",
-        content: note?.content || "",
+    defaultValues: {
+        title: "",
+        content: "",
     }
   });
+
+  useEffect(() => {
+    if (note) {
+      form.reset({
+        title: note.title,
+        content: note.content,
+      });
+    }
+  }, [note, form]);
+
 
   const handleDelete = async () => {
     if (!noteRef) return;
@@ -353,3 +363,5 @@ export default function NoteDetailPage() {
     </>
   );
 }
+
+    
