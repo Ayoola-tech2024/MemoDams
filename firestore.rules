@@ -1,204 +1,188 @@
+/**
+ * @file Firestore Security Rules for MemoDams application.
+ *
+ * @corePhilosophy This ruleset enforces a strict user-ownership model for personal data (notes, tags, files)
+ *  and shared access for conversations.  It prioritizes authorization and assumes that client-side
+ *  validation handles most data integrity checks.
+ *
+ * @dataStructure
+ * - /users/{userId}: Stores user profiles.
+ * - /users/{userId}/notes/{noteId}: Stores notes private to each user.
+ * - /users/{userId}/tags/{tagId}: Stores tags private to each user.
+ * - /users/{userId}/files/{fileId}: Stores files private to each user.
+ * - /conversations/{conversationId}: Stores conversation metadata, accessible to participants.
+ * - /conversations/{conversationId}/messages/{messageId}: Stores messages within a conversation, accessible to participants.
+ *
+ * @keySecurityDecisions
+ * - Users can only access their own data under their /users/{userId} path.
+ * - Listing of users is disallowed.
+ * - Conversations are secured using a shared access model, where participants listed in the `participantIds` array
+ *   have access to the conversation and its messages.
+ *
+ * @denormalizationForAuthorization
+ * - Conversations: The `participantIds` array on each `/conversations/{conversationId}` document is used to efficiently
+ *   control access to the conversation and its messages.
+ *
+ * @structuralSegregation
+ * - User-specific data (notes, tags, files) is stored under the /users/{userId} path, ensuring privacy.
+ */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    /**
-     * @description This ruleset enforces a strict user-ownership model for user-related data,
-     *              and shared access for conversations. Users can only read and write their own
-     *              data (notes, tags, files), while conversations are accessible to participants.
-     * @dataStructure
-     *   - /users/{userId}: User profiles.
-     *   - /users/{userId}/notes/{noteId}: Notes created by a specific user.
-     *   - /users/{userId}/tags/{tagId}: Tags created by a specific user.
-     *   - /users/{userId}/files/{fileId}: Files uploaded by a specific user.
-     *   - /conversations/{conversationId}: Conversations between users.
-     *   - /conversations/{conversationId}/messages/{messageId}: Messages within a conversation.
-     * @keySecurityDecisions
-     *   - Users can only access their own user document.
-     *   - Users can only access notes, tags, and files under their own user ID.
-     *   - Conversations are accessible to all participants.
-     *   - Messages within a conversation are accessible to all participants.
-     *   - Listing users is disallowed.
-     * @denormalizationForAuthorization
-     *   - Conversations store a list of `participantIds` to easily check access.
-     */
-
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-    }
-
-    function isParticipant(participantIds) {
-      return isSignedIn() && participantIds.hasAny([request.auth.uid]);
-    }
 
     /**
-     * @description Controls access to user profiles. Only the authenticated user can read and write their own profile.
+     * @description Controls access to user profiles.
      * @path /users/{userId}
-     * @allow (get) User with ID 'user123' can read their own profile.
-     *        Request: auth.uid = 'user123'
-     * @allow (create) User with ID 'user123' can create their own profile.
-     *        Request: auth.uid = 'user123', request.resource.data.id = 'user123'
-     * @allow (update) User with ID 'user123' can update their own profile.
-     *        Request: auth.uid = 'user123', resource.data.id = 'user123'
-     * @allow (delete) User with ID 'user123' can delete their own profile.
-     *        Request: auth.uid = 'user123', resource.data.id = 'user123'
-     * @deny (get) User with ID 'user456' cannot read the profile of user 'user123'.
-     *       Request: auth.uid = 'user456'
-     * @deny (create) User with ID 'user456' cannot create a profile for user 'user123'.
-     *       Request: auth.uid = 'user456', request.resource.data.id = 'user123'
-     * @principle Enforces document ownership for writes.
+     * @allow (create) Authenticated user can create their own profile.
+     * @allow (get) Authenticated user can read their own profile.
+     * @allow (update) Authenticated user can update their own profile.
+     * @allow (delete) Authenticated user can delete their own profile.
+     * @deny (list) Listing all users is not allowed.
+     * @deny (create) An unauthenticated user cannot create a user profile.
+     * @deny (update) A user cannot modify another user's profile.
+     * @deny (delete) A user cannot delete another user's profile.
+     * @principle Enforces user ownership for profile data.
      */
     match /users/{userId} {
       allow get: if isOwner(userId);
       allow list: if false;
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
-      allow delete: if isExistingOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
     }
 
     /**
-     * @description Controls access to notes created by a specific user. Only the owner can read, create, update, and delete their own notes.
+     * @description Controls access to notes for a specific user.
      * @path /users/{userId}/notes/{noteId}
-     * @allow (get) User with ID 'user123' can read their note.
-     *        Request: auth.uid = 'user123'
-     * @allow (create) User with ID 'user123' can create a new note.
-     *        Request: auth.uid = 'user123', request.resource.data.userId = 'user123'
-     * @allow (update) User with ID 'user123' can update their note.
-     *        Request: auth.uid = 'user123', resource.data.userId = 'user123'
-     * @allow (delete) User with ID 'user123' can delete their note.
-     *        Request: auth.uid = 'user123', resource.data.userId = 'user123'
-     * @deny (get) User with ID 'user456' cannot read a note of user 'user123'.
-     *       Request: auth.uid = 'user456'
-     * @deny (create) User with ID 'user456' cannot create a note for user 'user123'.
-     *       Request: auth.uid = 'user456', request.resource.data.userId = 'user123'
-     * @principle Enforces document ownership for writes.
+     * @allow (create) Authenticated user can create notes under their own user ID.
+     * @allow (get) Authenticated user can read notes under their own user ID.
+     * @allow (update) Authenticated user can update notes under their own user ID.
+     * @allow (delete) Authenticated user can delete notes under their own user ID.
+     * @deny (create) An unauthenticated user cannot create notes.
+     * @deny (create) A user cannot create notes under another user's ID.
+     * @deny (get) A user cannot read notes under another user's ID.
+     * @deny (update) A user cannot modify notes under another user's ID.
+     * @deny (delete) A user cannot delete notes under another user's ID.
+     * @principle Enforces user ownership for note data.
      */
     match /users/{userId}/notes/{noteId} {
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isExistingOwner(userId) && resource.data.userId == userId;
-      allow delete: if isExistingOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) && resource != null;
+      allow delete: if isOwner(userId) && resource != null;
     }
 
     /**
-     * @description Controls access to tags created by a specific user. Only the owner can read, create, update, and delete their own tags.
+     * @description Controls access to tags for a specific user.
      * @path /users/{userId}/tags/{tagId}
-     * @allow (get) User with ID 'user123' can read their tag.
-     *        Request: auth.uid = 'user123'
-     * @allow (create) User with ID 'user123' can create a new tag.
-     *        Request: auth.uid = 'user123', request.resource.data.userId = 'user123'
-     * @allow (update) User with ID 'user123' can update their tag.
-     *        Request: auth.uid = 'user123', resource.data.userId = 'user123'
-     * @allow (delete) User with ID 'user123' can delete their tag.
-     *        Request: auth.uid = 'user123', resource.data.userId = 'user123'
-     * @deny (get) User with ID 'user456' cannot read a tag of user 'user123'.
-     *       Request: auth.uid = 'user456'
-     * @deny (create) User with ID 'user456' cannot create a tag for user 'user123'.
-     *       Request: auth.uid = 'user456', request.resource.data.userId = 'user123'
-     * @principle Enforces document ownership for writes.
+     * @allow (create) Authenticated user can create tags under their own user ID.
+     * @allow (get) Authenticated user can read tags under their own user ID.
+     * @allow (update) Authenticated user can update tags under their own user ID.
+     * @allow (delete) Authenticated user can delete tags under their own user ID.
+     * @deny (create) An unauthenticated user cannot create tags.
+     * @deny (create) A user cannot create tags under another user's ID.
+     * @deny (get) A user cannot read tags under another user's ID.
+     * @deny (update) A user cannot modify tags under another user's ID.
+     * @deny (delete) A user cannot delete tags under another user's ID.
+     * @principle Enforces user ownership for tag data.
      */
     match /users/{userId}/tags/{tagId} {
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isExistingOwner(userId) && resource.data.userId == userId;
-      allow delete: if isExistingOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) && resource != null;
+      allow delete: if isOwner(userId) && resource != null;
     }
 
     /**
-     * @description Controls access to files uploaded by a specific user. Only the owner can read, create, update, and delete their own files.
+     * @description Controls access to files for a specific user.
      * @path /users/{userId}/files/{fileId}
-     * @allow (get) User with ID 'user123' can read their file.
-     *        Request: auth.uid = 'user123'
-     * @allow (create) User with ID 'user123' can create a new file.
-     *        Request: auth.uid = 'user123', request.resource.data.userId = 'user123'
-     * @allow (update) User with ID 'user123' can update their file.
-     *        Request: auth.uid = 'user123', resource.data.userId = 'user123'
-     * @allow (delete) User with ID 'user123' can delete their file.
-     *        Request: auth.uid = 'user123', resource.data.userId = 'user123'
-     * @deny (get) User with ID 'user456' cannot read a file of user 'user123'.
-     *       Request: auth.uid = 'user456'
-     * @deny (create) User with ID 'user456' cannot create a file for user 'user123'.
-     *       Request: auth.uid = 'user456', request.resource.data.userId = 'user123'
-     * @principle Enforces document ownership for writes.
+     * @allow (create) Authenticated user can create files under their own user ID.
+     * @allow (get) Authenticated user can read files under their own user ID.
+     * @allow (update) Authenticated user can update files under their own user ID.
+     * @allow (delete) Authenticated user can delete files under their own user ID.
+     * @deny (create) An unauthenticated user cannot create files.
+     * @deny (create) A user cannot create files under another user's ID.
+     * @deny (get) A user cannot read files under another user's ID.
+     * @deny (update) A user cannot modify files under another user's ID.
+     * @deny (delete) A user cannot delete files under another user's ID.
+     * @principle Enforces user ownership for file data.
      */
     match /users/{userId}/files/{fileId} {
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isExistingOwner(userId) && resource.data.userId == userId;
-      allow delete: if isExistingOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) && resource != null;
+      allow delete: if isOwner(userId) && resource != null;
     }
 
     /**
-     * @description Controls access to conversations. Participants can read and write to the conversation.
+     * @description Controls access to conversations.
      * @path /conversations/{conversationId}
-     * @allow (get) User with ID 'user123' can read the conversation if they are a participant.
-     *        Request: auth.uid = 'user123', resource.data.participantIds contains 'user123'
-     * @allow (create) User with ID 'user123' can create a conversation if they are a participant.
-     *        Request: auth.uid = 'user123', request.resource.data.participantIds contains 'user123'
-     * @allow (update) User with ID 'user123' can update the conversation if they are a participant.
-     *        Request: auth.uid = 'user123', resource.data.participantIds contains 'user123'
-     * @allow (delete) User with ID 'user123' can delete the conversation if they are a participant.
-     *        Request: auth.uid = 'user123', resource.data.participantIds contains 'user123'
-     * @deny (get) User with ID 'user456' cannot read the conversation if they are not a participant.
-     *       Request: auth.uid = 'user456', resource.data.participantIds does not contain 'user456'
-     * @principle Enforces shared access based on the 'participantIds' array.
+     * @allow (create) Any authenticated user can create a conversation.
+     * @allow (get) Only participants can read a conversation.
+     * @allow (update) Only participants can update a conversation.
+     * @allow (delete) Only participants can delete a conversation.
+     * @deny (create) An unauthenticated user cannot create a conversation.
+     * @deny (get) A user who isn't a participant cannot read a conversation.
+     * @deny (update) A user who isn't a participant cannot modify a conversation.
+     * @deny (delete) A user who isn't a participant cannot delete a conversation.
+     * @principle Enforces shared access based on the `participantIds` array.
      */
     match /conversations/{conversationId} {
-      allow get: if isParticipant(resource.data.participantIds);
-      allow list: if true;
-      allow create: if isSignedIn() && request.resource.data.participantIds.hasAny([request.auth.uid]);
-      allow update: if isParticipant(resource.data.participantIds) && resource != null;
-      allow delete: if isParticipant(resource.data.participantIds) && resource != null;
+      allow get: if isSignedIn() && isParticipant(resource.data.participantIds);
+      allow list: if false; // Listing all conversations is disallowed for security reasons.
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && isParticipant(resource.data.participantIds) && resource != null;
+      allow delete: if isSignedIn() && isParticipant(resource.data.participantIds) && resource != null;
     }
 
     /**
-     * @description Controls access to messages within a conversation. Participants of the conversation can read and write messages.
+     * @description Controls access to messages within a conversation.
      * @path /conversations/{conversationId}/messages/{messageId}
-     * @allow (get) User with ID 'user123' can read a message if they are a participant in the conversation.
-     *        Request: auth.uid = 'user123', get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds contains 'user123'
-     * @allow (create) User with ID 'user123' can create a message if they are a participant in the conversation.
-     *        Request: auth.uid = 'user123', get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds contains 'user123'
-     * @allow (update) User with ID 'user123' can update a message if they are a participant in the conversation.
-     *        Request: auth.uid = 'user123', get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds contains 'user123'
-     * @allow (delete) User with ID 'user123' can delete a message if they are a participant in the conversation.
-     *        Request: auth.uid = 'user123', get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds contains 'user123'
-     * @deny (get) User with ID 'user456' cannot read a message if they are not a participant in the conversation.
-     *       Request: auth.uid = 'user456', get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds does not contain 'user456'
-     * @principle Enforces shared access based on the 'participantIds' array in the parent conversation.
+     * @allow (create) Only participants can create messages in a conversation.
+     * @allow (get) Only participants can read messages in a conversation.
+     * @allow (update) No one is allowed to update a message
+     * @allow (delete) No one is allowed to delete a message
+     * @deny (create) An unauthenticated user cannot create messages.
+     * @deny (get) A user who isn't a participant cannot read messages.
+     * @principle Enforces shared access based on the `participantIds` array in the parent conversation.
      */
     match /conversations/{conversationId}/messages/{messageId} {
-      allow get: if isParticipant(get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds);
-      allow list: if isParticipant(get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds);
-      allow create: if isSignedIn() && get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds.hasAny([request.auth.uid]);
-      allow update: if isSignedIn() && get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds.hasAny([request.auth.uid]) && resource != null;
-      allow delete: if isSignedIn() && get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds.hasAny([request.auth.uid]) && resource != null;
+      allow get: if isSignedIn() && isParticipant(get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds);
+      allow list: if isSignedIn() && isParticipant(get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds);
+      allow create: if isSignedIn() && isParticipant(get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds);
+      allow update: if false;
+      allow delete: if false;
     }
+  }
 
-    /**
-     * @description Controls listing of conversations for a specific user.
-     * @path /users/{userId}/conversations
-     * @allow (list) User with ID 'user123' can list conversations under their ID.
-     *        Request: auth.uid = 'user123'
-     * @deny (list) User with ID 'user456' cannot list conversations under the ID of user 'user123'.
-     *       Request: auth.uid = 'user456'
-     * @principle Enforces document ownership for reads.
-     */
-    match /users/{userId}/conversations {
-          allow list: if isOwner(userId);
-          allow get: if false;
-          allow create: if false;
-          allow update: if false;
-          allow delete: if false;
-    }
+  // Helper functions
+
+  /**
+   * @description Checks if the request is authenticated.
+   * @return {bool} True if the request is authenticated, false otherwise.
+   */
+  function isSignedIn() {
+    return request.auth != null;
+  }
+
+  /**
+   * @description Checks if the authenticated user is the owner of the resource.
+   * @param {string} userId The user ID to compare against the authenticated user's ID.
+   * @return {bool} True if the user is the owner, false otherwise.
+   */
+  function isOwner(userId) {
+    return request.auth.uid == userId;
+  }
+
+  /**
+   * @description Checks if the authenticated user is a participant in the conversation.
+   * @param {array} participantIds An array of user IDs participating in the conversation.
+   * @return {bool} True if the user is a participant, false otherwise.
+   */
+  function isParticipant(participantIds) {
+    return participantIds.hasAny([request.auth.uid]);
   }
 }
