@@ -73,22 +73,18 @@ export function StartConversationDialog({ trigger, currentUserId, onConversation
 
     try {
         // Check if a conversation already exists
+        // This query is inefficient but works for small scale. 
+        // For larger scale, you'd create a composite ID for the conversation document.
         const conversationsRef = collection(firestore, 'conversations');
-        const q = query(conversationsRef, 
-            where('participantIds', 'array-contains', currentUserId)
-        );
-        const querySnapshot = await getDocs(q);
-        
-        let existingConversation = null;
-        querySnapshot.forEach(doc => {
-            const data = doc.data();
-            if (data.participantIds.includes(recipient.id)) {
-                existingConversation = { id: doc.id, ...data };
-            }
-        });
+        const q1 = query(conversationsRef, where('participantIds', '==', [currentUserId, recipient.id]));
+        const q2 = query(conversationsRef, where('participantIds', '==', [recipient.id, currentUserId]));
 
-        if (existingConversation) {
-            onConversationCreated(existingConversation.id, recipient.id);
+        const [snapshot1, snapshot2] = await Promise.all([getDocs(q1), getDocs(q2)]);
+        
+        const existingConversationDoc = snapshot1.docs[0] || snapshot2.docs[0];
+
+        if (existingConversationDoc) {
+            onConversationCreated(existingConversationDoc.id, recipient.id);
             setOpen(false);
             return;
         }
@@ -97,17 +93,21 @@ export function StartConversationDialog({ trigger, currentUserId, onConversation
         const batch = writeBatch(firestore);
         const newConversationRef = doc(collection(firestore, 'conversations'));
         
-        batch.set(newConversationRef, {
+        const conversationData = {
             participantIds: [currentUserId, recipient.id],
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
-            lastMessage: {
-                text: "Conversation started",
-                senderId: currentUserId,
-                createdAt: serverTimestamp()
-            }
-        });
-        
+            lastMessage: null,
+        };
+        batch.set(newConversationRef, conversationData);
+
+        // Add conversation reference to both users' subcollections
+        const currentUserConversationsRef = doc(firestore, 'users', currentUserId, 'conversations', newConversationRef.id);
+        const recipientConversationsRef = doc(firestore, 'users', recipient.id, 'conversations', newConversationRef.id);
+
+        batch.set(currentUserConversationsRef, { conversationId: newConversationRef.id });
+        batch.set(recipientConversationsRef, { conversationId: newConversationRef.id });
+
         await batch.commit();
 
         toast({ title: "Conversation Started", description: `You can now message ${recipient.name}.` });
@@ -187,5 +187,3 @@ export function StartConversationDialog({ trigger, currentUserId, onConversation
     </Dialog>
   );
 }
-
-    

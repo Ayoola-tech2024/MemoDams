@@ -2,67 +2,63 @@
  * @fileoverview Firestore Security Rules for MemoDams application.
  *
  * Core Philosophy:
- * This ruleset enforces a strict user-ownership model, ensuring that users can only access their own data.
+ * This ruleset enforces a strict user-ownership model. Each user can only
+ * access their own data, including user profiles, notes, and files.
  *
  * Data Structure:
- * All user-specific data (notes and files) is nested under /users/{userId}.
+ * - /users/{userId}: Stores user profile data.
+ * - /users/{userId}/notes/{noteId}: Stores notes created by the user.
+ * - /users/{userId}/files/{fileId}: Stores files uploaded by the user.
  *
  * Key Security Decisions:
- * - Users can only list collections of notes and files under their own user ID.
- * - The rules explicitly deny any listing of the top-level `/conversations` collection.
- * - Data shape validation is relaxed to allow for prototyping, but ownership is strictly enforced.
+ * - Users can only read and write their own profiles.
+ * - Users can only create, read, update, and delete their own notes and files.
+ * - Listing of notes and files is restricted to the owner.
  *
  * Denormalization for Authorization:
- * The rules rely on the path-based user ID to authorize access, avoiding the need for denormalized ownership fields within the documents themselves.
+ *  - The `userId` is embedded in the path for notes and files, and is checked against `request.auth.uid` to authorize access.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Checks if the request is made by a signed-in user.
-     */
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    /**
-     * @description Checks if the authenticated user's ID matches the provided user ID.
-     */
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    /**
-     * @description Checks if the authenticated user is the owner of an existing document.
-     */
-    function isExistingOwner(userId) {
-      return isOwner(userId) && resource != null;
-    }
-
-    /**
-     * @description Rules for the /users/{userId} collection.
+     * @description Allows users to read and write their own profile data.
      * @path /users/{userId}
-     * @allow (create) User with ID 'user123' can create their profile.
-     * @deny (create) User with ID 'user456' cannot create a profile with ID 'user123'.
-     * @principle Enforces document ownership for writes.
+     * @allow (get, update, delete) User with matching UID can access.
+     * @allow (create) User with matching UID can create.
+     * @deny (get, update, delete) User with non-matching UID attempts to access.
+     * @deny (create) User with non-matching UID attempts to create.
+     * @principle Enforces document ownership for all operations.
      */
     match /users/{userId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+
       allow get: if isOwner(userId);
       allow list: if false;
       allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
     }
 
     /**
-     * @description Rules for the /users/{userId}/notes/{noteId} collection.
+     * @description Allows users to create, read, update, and delete their own notes.
      * @path /users/{userId}/notes/{noteId}
-     * @allow (create) User with ID 'user123' can create a note under their profile.
-     * @deny (create) User with ID 'user456' cannot create a note under user123's profile.
-     * @principle Restricts access to a user's own data tree.
+     * @allow (create, get, update, delete) User with matching UID can access.
+     * @deny (create, get, update, delete) User with non-matching UID attempts to access.
+     * @principle Enforces document ownership for writes.
      */
     match /users/{userId}/notes/{noteId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
       allow create: if isOwner(userId);
@@ -71,32 +67,26 @@ service cloud.firestore {
     }
 
     /**
-     * @description Rules for the /users/{userId}/files/{fileId} collection.
+     * @description Allows users to create, read, update, and delete their own files.
      * @path /users/{userId}/files/{fileId}
-     * @allow (create) User with ID 'user123' can create a file under their profile.
-     * @deny (create) User with ID 'user456' cannot create a file under user123's profile.
-     * @principle Restricts access to a user's own data tree.
+     * @allow (create, get, update, delete) User with matching UID can access.
+     * @deny (create, get, update, delete) User with non-matching UID attempts to access.
+     * @principle Enforces document ownership for writes.
      */
     match /users/{userId}/files/{fileId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
       allow create: if isOwner(userId);
       allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
-    }
-    
-        /**
-     * @description Rules for the /conversations collection (Deny listing).
-     * @path /conversations
-     * @deny (list)  Denies listing all the converstations for all users.
-     * @principle Prevents unauthorized listing of the conversations collection.
-     */
-    match /conversations {
-      allow get: if false;
-      allow list: if false;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
     }
   }
 }

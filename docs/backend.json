@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -8,31 +9,43 @@
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the user entity."
-        },
-        "name": {
-          "type": "string",
-          "description": "The user's full name."
+          "description": "Unique identifier for the user.",
+          "format": "uuid"
         },
         "email": {
           "type": "string",
-          "description": "The user's email address.",
+          "description": "Email address of the user.",
           "format": "email"
+        },
+        "name": {
+          "type": "string",
+          "description": "Full name of the user."
         },
         "bio": {
           "type": "string",
-          "description": "A short biography of the user."
+          "description": "Short biography or description of the user."
         },
         "profilePictureUrl": {
           "type": "string",
           "description": "URL of the user's profile picture.",
           "format": "uri"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the user account was created.",
+          "format": "date-time"
+        },
+        "birthday": {
+          "type": "string",
+          "description": "User's birthday.",
+          "format": "date"
         }
       },
       "required": [
         "id",
+        "email",
         "name",
-        "email"
+        "createdAt"
       ]
     },
     "Note": {
@@ -43,26 +56,19 @@
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the note entity."
+          "description": "Unique identifier for the note."
         },
         "userId": {
           "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N Note)"
+          "description": "Reference to the User who created the note. (Relationship: User 1:N Note)"
         },
         "title": {
           "type": "string",
-          "description": "The title of the note."
+          "description": "Title of the note."
         },
         "content": {
           "type": "string",
-          "description": "The content of the note (rich text or markdown)."
-        },
-        "tags": {
-          "type": "array",
-          "description": "Tags associated with the note.",
-          "items": {
-            "type": "string"
-          }
+          "description": "Content of the note (rich text or markdown)."
         },
         "createdAt": {
           "type": "string",
@@ -73,6 +79,13 @@
           "type": "string",
           "description": "Timestamp indicating when the note was last updated.",
           "format": "date-time"
+        },
+        "tagIds": {
+          "type": "array",
+          "description": "References to Tags associated with the note. (Relationship: Tag N:N Note)",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "required": [
@@ -84,6 +97,37 @@
         "updatedAt"
       ]
     },
+    "Tag": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Tag",
+      "type": "object",
+      "description": "Represents a tag or category for notes.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the tag."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User who created the tag. (Relationship: User 1:N Tag)"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the tag."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the tag was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "name",
+        "createdAt"
+      ]
+    },
     "File": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "File",
@@ -92,19 +136,19 @@
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the file entity."
+          "description": "Unique identifier for the file."
         },
         "userId": {
           "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N File)"
+          "description": "Reference to the User who uploaded the file. (Relationship: User 1:N File)"
         },
         "name": {
           "type": "string",
-          "description": "The name of the file."
+          "description": "Original name of the file."
         },
         "url": {
           "type": "string",
-          "description": "The URL where the file is stored.",
+          "description": "URL of the file stored in Firebase Storage.",
           "format": "uri"
         },
         "uploadDate": {
@@ -112,13 +156,13 @@
           "description": "Timestamp indicating when the file was uploaded.",
           "format": "date-time"
         },
-        "type": {
+        "fileType": {
           "type": "string",
           "description": "MIME type of the file."
         },
-        "size": {
+        "fileSize": {
           "type": "number",
-          "description": "The size of the file in bytes."
+          "description": "Size of the file in bytes."
         }
       },
       "required": [
@@ -126,16 +170,65 @@
         "userId",
         "name",
         "url",
-        "uploadDate",
-        "type",
-        "size"
+        "uploadDate"
       ]
+    },
+    "Conversation": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Conversation",
+      "type": "object",
+      "description": "Represents a chat conversation between two or more users.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the conversation."
+        },
+        "participantIds": {
+          "type": "array",
+          "description": "Array of user IDs participating in the conversation.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "lastMessage": {
+          "type": "object",
+          "properties": {
+            "text": { "type": "string" },
+            "senderId": { "type": "string" },
+            "createdAt": { "type": "string", "format": "date-time" }
+          }
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "participantIds", "createdAt", "updatedAt"]
+    },
+    "Message": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Message",
+      "type": "object",
+      "description": "Represents a single message within a conversation.",
+      "properties": {
+        "id": { "type": "string" },
+        "conversationId": { "type": "string" },
+        "senderId": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "conversationId", "senderId", "text", "createdAt"]
     }
   },
   "auth": {
     "providers": [
       "password",
-      "anonymous"
+      "anonymous",
+      "google.com"
     ]
   },
   "firestore": {
@@ -146,14 +239,7 @@
           "entityName": "User",
           "schema": {
             "$ref": "#/backend/entities/User"
-          },
-          "description": "Stores user profiles.  The 'userId' parameter corresponds to the Firebase Auth UID.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user, matching the Firebase Auth UID."
-            }
-          ]
+          }
         }
       },
       {
@@ -162,18 +248,16 @@
           "entityName": "Note",
           "schema": {
             "$ref": "#/backend/entities/Note"
-          },
-          "description": "Stores notes created by the user. The 'userId' parameter corresponds to the Firebase Auth UID.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user, matching the Firebase Auth UID."
-            },
-            {
-              "name": "noteId",
-              "description": "The unique identifier for the note."
-            }
-          ]
+          }
+        }
+      },
+      {
+        "path": "/users/{userId}/tags/{tagId}",
+        "definition": {
+          "entityName": "Tag",
+          "schema": {
+            "$ref": "#/backend/entities/Tag"
+          }
         }
       },
       {
@@ -182,21 +266,27 @@
           "entityName": "File",
           "schema": {
             "$ref": "#/backend/entities/File"
-          },
-          "description": "Stores files uploaded by the user. The 'userId' parameter corresponds to the Firebase Auth UID.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user, matching the Firebase Auth UID."
-            },
-            {
-              "name": "fileId",
-              "description": "The unique identifier for the file."
-            }
-          ]
+          }
+        }
+      },
+      {
+        "path": "/conversations/{conversationId}",
+        "definition": {
+          "entityName": "Conversation",
+          "schema": {
+            "$ref": "#/backend/entities/Conversation"
+          }
+        }
+      },
+      {
+        "path": "/conversations/{conversationId}/messages/{messageId}",
+        "definition": {
+          "entityName": "Message",
+          "schema": {
+            "$ref": "#/backend/entities/Message"
+          }
         }
       }
-    ],
-    "reasoning": "The Firestore data structure is designed to address the \"Missing or insufficient permissions\" error by ensuring proper authorization for listing files. It follows the principles of Authorization Independence, Structural Segregation, Access Modeling, and Data Clarity.  The structure uses path-based ownership for user data, placing notes and files under their respective user IDs to simplify security rules.  Each user's files are stored under `/users/{userId}/files/{fileId}` and their notes under `/users/{userId}/notes/{noteId}`. This design mandates that list operations on `/users/{userId}/files` must be restricted to the authenticated user with a matching `userId`. This structure directly addresses the error by aligning the data model with the required security constraints, ensuring that users can only access their own files and notes.  QAPs (Rules Are Not Filters) are achieved by structurally segregating data, ensuring that list operations can be secured without requiring filtering based on document content. The membership map is not used as there is no collaborative data in this app."
+    ]
   }
 }

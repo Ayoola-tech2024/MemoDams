@@ -2,12 +2,19 @@
 "use client";
 
 import { useCollection, useDoc, useFirestore, useUser, useMemoFirebase } from '@/firebase';
-import { collection, query, where, orderBy, doc } from 'firebase/firestore';
+import { collection, query, where, orderBy, doc, getDoc } from 'firebase/firestore';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
+import { useEffect, useState } from 'react';
 
+// This is a reference stored in the user's subcollection
+interface ConversationRef {
+  conversationId: string;
+}
+
+// This is the actual conversation document from the root collection
 interface Conversation {
   id: string;
   participantIds: string[];
@@ -16,6 +23,7 @@ interface Conversation {
     senderId: string;
     createdAt: { seconds: number; nanoseconds: number };
   };
+   updatedAt: { seconds: number; nanoseconds: number };
 }
 
 interface UserProfile {
@@ -67,7 +75,7 @@ function ConversationListItem({ conversation, currentUserId, isSelected, onSelec
           )}
         </div>
         <p className="text-sm text-muted-foreground truncate">
-            {conversation.lastMessage?.senderId === currentUserId && 'You: '}
+            {conversation.lastMessage?.senderId === currentUserId ? 'You: ' : ''}
             {conversation.lastMessage?.text || 'No messages yet...'}
         </p>
       </div>
@@ -96,29 +104,78 @@ interface ConversationListProps {
 export function ConversationList({ onConversationSelect, selectedConversationId }: ConversationListProps) {
   const { user } = useUser();
   const firestore = useFirestore();
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const conversationsQuery = useMemoFirebase(() => {
+  // 1. Get the list of conversation IDs from the user's subcollection
+  const conversationRefsQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
-    return query(
-      collection(firestore, 'conversations'),
-      where('participantIds', 'array-contains', user.uid),
-      orderBy('updatedAt', 'desc')
-    );
+    return collection(firestore, 'users', user.uid, 'conversations');
   }, [user, firestore]);
 
-  const { data: conversations, isLoading } = useCollection<Conversation>(conversationsQuery);
+  const { data: conversationRefs } = useCollection<ConversationRef>(conversationRefsQuery);
+
+  // 2. Fetch the actual conversation documents based on the IDs
+  useEffect(() => {
+    if (!conversationRefs || !firestore) {
+      // If there are no refs, we're not loading and there are no convos
+      if(conversationRefs !== null) { // only set loading to false if query has run and returned empty
+         setConversations([]);
+         setIsLoading(false);
+      }
+      return;
+    };
+    
+    // If there are refs but the array is empty
+    if(conversationRefs.length === 0) {
+        setConversations([]);
+        setIsLoading(false);
+        return;
+    }
+
+    setIsLoading(true);
+    const fetchConversations = async () => {
+      try {
+        const conversationPromises = conversationRefs.map(ref => 
+          getDoc(doc(firestore, 'conversations', ref.conversationId))
+        );
+        const conversationSnapshots = await Promise.all(conversationPromises);
+        const convos = conversationSnapshots
+          .map(snap => snap.exists() ? { id: snap.id, ...snap.data() } as Conversation : null)
+          .filter((c): c is Conversation => c !== null)
+          .sort((a, b) => b.updatedAt.seconds - a.updatedAt.seconds); // Sort by last update
+          
+        setConversations(convos);
+      } catch (error) {
+        console.error("Error fetching conversations:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchConversations();
+  }, [conversationRefs, firestore]);
+
 
   if (isLoading) {
     return (
       <div className="space-y-2 p-2">
-        {Array.from({ length: 5 }).map((_, i) => <ConversationSkeleton key={i} />)}
+        {Array.from({ length: 3 }).map((_, i) => <ConversationSkeleton key={i} />)}
       </div>
     );
+  }
+  
+  if (conversations.length === 0) {
+    return (
+       <div className="p-4 text-center text-sm text-muted-foreground">
+          No conversations started yet.
+       </div>
+    )
   }
 
   return (
     <div className="flex flex-col gap-1 p-2">
-      {conversations?.map((convo) => (
+      {conversations.map((convo) => (
         <ConversationListItem
           key={convo.id}
           conversation={convo}
@@ -130,5 +187,3 @@ export function ConversationList({ onConversationSelect, selectedConversationId 
     </div>
   );
 }
-
-    
