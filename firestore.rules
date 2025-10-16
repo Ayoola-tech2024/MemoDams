@@ -1,40 +1,46 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
+    // Rules for the users collection itself
+    match /users/{userId} {
+      allow read, update, delete: if request.auth.uid == userId;
+      allow create: if request.auth.uid != null;
     }
 
-    match /users/{userId} {
-      allow read, update, write: if isOwner(userId);
-      
-      // Allow user to list their own notes, files, and tags
-      allow list: if isOwner(userId);
-
-      match /notes/{noteId} {
-        allow read, write: if isOwner(userId);
-      }
-
-      match /files/{fileId} {
-        allow read, write: if isOwner(userId);
-      }
-      
-      match /tags/{tagId} {
-        allow read, write: if isOwner(userId);
-      }
+    // Rules for listing user sub-collections
+    match /users/{userId}/notes {
+      allow list, create: if request.auth.uid == userId;
+    }
+    match /users/{userId}/files {
+      allow list, create: if request.auth.uid == userId;
+    }
+    match /users/{userId}/tags {
+      allow list, create: if request.auth.uid == userId;
+    }
+    match /conversations {
+       allow list, create: if request.auth.uid != null && request.auth.uid in request.resource.data.participantIds;
+    }
+     match /conversations/{conversationId}/messages {
+      allow list, create: if request.auth.uid != null && resource.data.senderId == request.auth.uid;
     }
     
+
+    // Rules for accessing individual documents in sub-collections
+    match /users/{userId}/notes/{noteId} {
+      allow read, update, delete: if request.auth.uid == userId;
+    }
+    match /users/{userId}/files/{fileId} {
+      allow read, update, delete: if request.auth.uid == userId;
+    }
+    match /users/{userId}/tags/{tagId} {
+      allow read, update, delete: if request.auth.uid == userId;
+    }
     match /conversations/{conversationId} {
-      allow read, write: if request.auth != null && request.auth.uid in resource.data.participantIds;
-      
-      match /messages/{messageId} {
-        // Anyone in the conversation can list and read messages
-        allow list, read: if request.auth != null && get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds.hasAny([request.auth.uid]);
-        // Only the sender can create a message
-        allow create: if request.auth != null && request.resource.data.senderId == request.auth.uid;
-      }
+      allow read, update: if request.auth.uid in resource.data.participantIds;
+    }
+     match /conversations/{conversationId}/messages/{messageId} {
+      allow read: if request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds;
     }
   }
 }
