@@ -80,7 +80,7 @@ export default function DashboardLayout({
 
     // Exempt users created before a specific date from email verification
     const creationTime = user.metadata.creationTime ? new Date(user.metadata.creationTime) : new Date();
-    const cutoffDate = new Date('2025-10-17T00:00:00Z'); // Grandfathering cutoff date
+    const cutoffDate = new Date('2025-10-18T00:00:00Z'); // Grandfathering cutoff date
 
     const isLegacyUser = creationTime < cutoffDate;
 
@@ -106,7 +106,7 @@ export default function DashboardLayout({
   const isVerificationRequired = () => {
     if (!user) return false;
     const creationTime = user.metadata.creationTime ? new Date(user.metadata.creationTime) : new Date();
-    const cutoffDate = new Date('2025-10-17T00:00:00Z');
+    const cutoffDate = new Date('2025-10-18T00:00:00Z');
     const isLegacyUser = creationTime < cutoffDate;
     return !user.emailVerified && !isLegacyUser;
   };
