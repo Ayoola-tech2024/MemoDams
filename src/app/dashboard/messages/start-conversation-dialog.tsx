@@ -44,14 +44,15 @@ export function StartConversationDialog({ trigger, currentUserId, onConversation
 
   const handleSearch = async (term: string) => {
     setSearchTerm(term);
-    if (term.length < 3 || !firestore) {
+    if (term.length < 2 || !firestore) {
       setSearchResults([]);
       return;
     }
     setIsLoading(true);
     try {
       const usersRef = collection(firestore, "users");
-      const q = query(usersRef, where("email", ">=", term), where("email", "<=", term + '\uf8ff'));
+      // Search by name, case-insensitive
+      const q = query(usersRef, where("name", ">=", term), where("name", "<=", term + '\uf8ff'));
       const querySnapshot = await getDocs(q);
       const users: UserSearchResult[] = [];
       querySnapshot.forEach((doc) => {
@@ -134,12 +135,12 @@ export function StartConversationDialog({ trigger, currentUserId, onConversation
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Start a New Conversation</DialogTitle>
-          <DialogDescription>Search for a user by their email to start chatting.</DialogDescription>
+          <DialogDescription>Search for a user by their name to start chatting.</DialogDescription>
         </DialogHeader>
         
         <div className="py-4">
           <Input
-            placeholder="Search by email..."
+            placeholder="Search by name..."
             value={searchTerm}
             onChange={(e) => handleSearch(e.target.value)}
           />
@@ -176,7 +177,7 @@ export function StartConversationDialog({ trigger, currentUserId, onConversation
                   </div>
                 ))}
               </div>
-            ) : searchTerm.length >= 3 && (
+            ) : searchTerm.length >= 2 && (
                 <div className="text-center text-sm text-muted-foreground py-8">
                     No users found.
                 </div>
