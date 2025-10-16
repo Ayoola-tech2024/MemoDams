@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import Link from "next/link"
@@ -11,8 +12,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Logo } from "@/components/logo"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { useAuth, useUser } from "@/firebase"
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, UserCredential, getMultiFactorResolver, MultiFactorError } from "firebase/auth"
+import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase"
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth"
+import { doc } from "firebase/firestore"
 import { useEffect, useState } from "react"
 import { useToast } from "@/hooks/use-toast"
 import { Eye, EyeOff } from "lucide-react"
@@ -36,6 +38,7 @@ const formSchema = z.object({
 export default function LoginPage() {
   const router = useRouter()
   const auth = useAuth()
+  const firestore = useFirestore()
   const { user, isUserLoading } = useUser()
   const { toast } = useToast()
   const [showPassword, setShowPassword] = useState(false);
@@ -50,35 +53,45 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (user && !isUserLoading) {
-      router.push("/dashboard")
+        // Clear any pending verification state
+        sessionStorage.removeItem('pending-verification-uid');
+        router.push("/dashboard")
     }
   }, [user, isUserLoading, router])
 
-  const handleSuccessfulLogin = (userCredential: UserCredential) => {
-    toast({ title: "Login Successful", description: "Welcome back!" });
-    router.push("/dashboard");
-  };
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password)
-      handleSuccessfulLogin(userCredential);
-    } catch (error: any) {
-      if (error.code === 'auth/multi-factor-required') {
-        const resolver = getMultiFactorResolver(auth, error as MultiFactorError);
-        // Store the resolver in session storage to be used in the verification page.
-        sessionStorage.setItem('mfaResolver', JSON.stringify(resolver));
-        // You can also pass the hint for which 2FA method to use.
-        // For TOTP, there's no specific hint needed beyond knowing it's not phone.
-        router.push('/login/verify-mfa');
+      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
+      const userDocRef = doc(firestore, "users", userCredential.user.uid);
+      const userDoc = await (await fetch(userDocRef.path)).json(); // A simplified way to get doc data server-side or client-side
+      
+      // In a real app, you would fetch the document from Firestore.
+      // For this simulation, we'll assume a way to check for phoneNumber.
+      // This is a placeholder for `getDoc`
+      const mockGetDoc = async (ref: any) => {
+          const storedUser = localStorage.getItem(`user-profile-${ref.id}`);
+          if (storedUser) return { exists: () => true, data: () => JSON.parse(storedUser) };
+          return { exists: () => false };
+      }
+      
+      const userProfileSnap = await mockGetDoc({ id: userCredential.user.uid });
+
+      if (userProfileSnap.exists() && userProfileSnap.data().phoneNumber) {
+        // Store UID and redirect to custom verification page
+        sessionStorage.setItem('pending-verification-uid', userCredential.user.uid);
+        router.push('/login/verify-phone-number');
       } else {
+        toast({ title: "Login Successful", description: "Welcome back!" });
+        router.push("/dashboard");
+      }
+    } catch (error: any) {
         console.error("Login failed:", error)
         toast({
           variant: "destructive",
           title: "Login Failed",
           description: error.message || "An unexpected error occurred.",
         })
-      }
     }
   }
 
@@ -86,7 +99,7 @@ export default function LoginPage() {
     try {
       const provider = new GoogleAuthProvider()
       await signInWithPopup(auth, provider)
-      // Google users are considered verified.
+      // Google sign-in doesn't require the custom phone verification step
       toast({ title: "Login Successful", description: "Welcome back!" })
       router.push("/dashboard")
     } catch (error: any) {

@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { Button } from "@/components/ui/button"
@@ -13,7 +14,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useTheme } from "next-themes"
-import { Sun, Moon, Laptop, Trash2, Mail, MessageSquare, Eye, EyeOff, CalendarIcon, ShieldCheck, ShieldOff } from "lucide-react"
+import { Sun, Moon, Laptop, Trash2, Mail, MessageSquare, Eye, EyeOff, CalendarIcon, Phone } from "lucide-react"
 import Link from "next/link";
 import {
   AlertDialog,
@@ -31,12 +32,12 @@ import { useUser } from "@/firebase"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider, multiFactor } from "firebase/auth"
+import { updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useEffect, useState, useTransition, useMemo } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { FileUploadDialog } from "@/components/file-upload-dialog";
 import { doc, setDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
@@ -45,7 +46,6 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { useAuth, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
-import { Enable2faDialog, Disable2faDialog } from "./2fa-dialogs";
 
 
 const profileSchema = z.object({
@@ -85,10 +85,6 @@ export default function SettingsPage() {
   }, [user, firestore]);
 
   const { data: userProfile, isLoading: isLoadingProfile } = useDoc(userProfileRef);
-  
-  const enrolledFactors = useMemo(() => {
-    return user ? multiFactor(user).enrolledFactors : [];
-  }, [user]);
   
   const profileForm = useForm<z.infer<typeof profileSchema>>({
     resolver: zodResolver(profileSchema),
@@ -370,149 +366,131 @@ export default function SettingsPage() {
           </Form>
         </Card>
 
-        {isPasswordProvider && (
-            <Card>
-            <Form {...passwordForm}>
-                <form>
-                <CardHeader>
-                    <CardTitle>Change Password</CardTitle>
-                    <CardDescription>
-                    Update your password here. It's a good practice to use a strong, unique password.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-6">
-                    <FormField
-                      control={passwordForm.control}
-                      name="newPassword"
-                      render={({ field }) => (
-                        <FormItem className="grid gap-2">
-                          <FormLabel>New Password</FormLabel>
-                          <div className="relative">
-                            <FormControl>
-                              <Input type={showNewPassword ? "text" : "password"} {...field} />
-                            </FormControl>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="absolute inset-y-0 right-0 h-full px-3"
-                              onClick={() => setShowNewPassword(!showNewPassword)}
-                            >
-                              {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                            </Button>
-                          </div>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={passwordForm.control}
-                      name="confirmPassword"
-                      render={({ field }) => (
-                        <FormItem className="grid gap-2">
-                          <FormLabel>Confirm New Password</FormLabel>
-                           <div className="relative">
-                            <FormControl>
-                              <Input type={showConfirmPassword ? "text" : "password"} {...field} />
-                            </FormControl>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="absolute inset-y-0 right-0 h-full px-3"
-                              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                            >
-                              {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                            </Button>
-                          </div>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                </CardContent>
-                <CardFooter className="border-t px-6 py-4">
-                    <AlertDialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
-                    <AlertDialogTrigger asChild>
-                        <Button type="button">Update Password</Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                        <AlertDialogTitle>Confirm Your Identity</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            For your security, please enter your current password to make this change.
-                        </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <FormField
-                            control={passwordForm.control}
-                            name="currentPassword"
-                            render={({ field }) => (
-                            <FormItem className="grid gap-2 mt-4">
-                                <FormLabel>Current Password</FormLabel>
-                                <div className="relative">
-                                <FormControl>
-                                <Input type={showCurrentPassword ? "text" : "password"} {...field} autoFocus />
-                                </FormControl>
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    className="absolute inset-y-0 right-0 h-full px-3"
-                                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                                >
-                                    {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                </Button>
-                                </div>
-                                <FormMessage />
-                            </FormItem>
-                            )}
-                        />
-                        <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={passwordForm.handleSubmit(onPasswordSubmit)} disabled={passwordForm.formState.isSubmitting}>
-                            {passwordForm.formState.isSubmitting ? "Updating..." : "Confirm and Update"}
-                        </AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                    </AlertDialog>
-                </CardFooter>
-                </form>
-            </Form>
-            </Card>
-        )}
-        
-        {isPasswordProvider && (
-           <Card>
+        <Card>
             <CardHeader>
-              <CardTitle>Two-Factor Authentication</CardTitle>
-              <CardDescription>
-                Add an extra layer of security by requiring a code from an authenticator app on login.
-              </CardDescription>
+                <CardTitle>Security</CardTitle>
+                <CardDescription>
+                    Manage your account's security settings.
+                </CardDescription>
             </CardHeader>
-            <CardContent>
-              {enrolledFactors.length > 0 ? (
-                <div className="flex flex-col gap-2">
-                  <p className="font-medium text-green-600 flex items-center gap-2">
-                    <ShieldCheck className="h-5 w-5" />
-                    Authenticator App 2FA is enabled.
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    You'll be asked for a code from your app on new devices.
-                  </p>
-                </div>
-              ) : (
-                <p className="text-muted-foreground">Two-Factor Authentication is currently disabled.</p>
-              )}
-            </CardContent>
-            <CardFooter className="border-t px-6 py-4">
-               {enrolledFactors.length > 0 ? (
-                  <Disable2faDialog user={user} />
-                ) : (
-                  <Enable2faDialog user={user} />
-                )}
-            </CardFooter>
-          </Card>
-        )}
+            <CardContent className="grid gap-6">
+                 {isPasswordProvider && (
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <Label>Change Password</Label>
+                            <p className="text-xs text-muted-foreground">It's a good practice to use a strong, unique password.</p>
+                        </div>
+                        <AlertDialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
+                            <AlertDialogTrigger asChild>
+                                <Button type="button" variant="outline">Update Password</Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <Form {...passwordForm}>
+                                <form>
+                                <AlertDialogHeader>
+                                <AlertDialogTitle>Change Password</AlertDialogTitle>
+                                </AlertDialogHeader>
+                                <div className="grid gap-4 py-4">
+                                     <FormField
+                                        control={passwordForm.control}
+                                        name="currentPassword"
+                                        render={({ field }) => (
+                                        <FormItem className="grid gap-2">
+                                            <FormLabel>Current Password</FormLabel>
+                                            <div className="relative">
+                                            <FormControl>
+                                            <Input type={showCurrentPassword ? "text" : "password"} {...field} autoFocus />
+                                            </FormControl>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon"
+                                                className="absolute inset-y-0 right-0 h-full px-3"
+                                                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                                            >
+                                                {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                            </Button>
+                                            </div>
+                                            <FormMessage />
+                                        </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                    control={passwordForm.control}
+                                    name="newPassword"
+                                    render={({ field }) => (
+                                        <FormItem className="grid gap-2">
+                                        <FormLabel>New Password</FormLabel>
+                                        <div className="relative">
+                                            <FormControl>
+                                            <Input type={showNewPassword ? "text" : "password"} {...field} />
+                                            </FormControl>
+                                            <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="absolute inset-y-0 right-0 h-full px-3"
+                                            onClick={() => setShowNewPassword(!showNewPassword)}
+                                            >
+                                            {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                            </Button>
+                                        </div>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                    />
+                                    <FormField
+                                    control={passwordForm.control}
+                                    name="confirmPassword"
+                                    render={({ field }) => (
+                                        <FormItem className="grid gap-2">
+                                        <FormLabel>Confirm New Password</FormLabel>
+                                        <div className="relative">
+                                            <FormControl>
+                                            <Input type={showConfirmPassword ? "text" : "password"} {...field} />
+                                            </FormControl>
+                                            <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="absolute inset-y-0 right-0 h-full px-3"
+                                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                            >
+                                            {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                            </Button>
+                                        </div>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                    />
+                                </div>
 
+                                <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={passwordForm.handleSubmit(onPasswordSubmit)} disabled={passwordForm.formState.isSubmitting}>
+                                    {passwordForm.formState.isSubmitting ? "Updating..." : "Confirm and Update"}
+                                </AlertDialogAction>
+                                </AlertDialogFooter>
+                                </form>
+                                </Form>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    </div>
+                )}
+                 <div className="flex items-center justify-between">
+                    <div>
+                        <Label>Phone Number</Label>
+                        <p className="text-xs text-muted-foreground">
+                            {userProfile?.phoneNumber ? `Enrolled number: ${userProfile.phoneNumber}` : "No phone number added."}
+                        </p>
+                    </div>
+                    <Button variant="outline" disabled>
+                        {userProfile?.phoneNumber ? "Change Number" : "Add Number"}
+                    </Button>
+                </div>
+            </CardContent>
+        </Card>
+        
         <Card>
           <CardHeader>
             <CardTitle>Theme Preferences</CardTitle>

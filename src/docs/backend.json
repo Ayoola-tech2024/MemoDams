@@ -1,4 +1,5 @@
 
+
 {
   "entities": {
     "User": {
@@ -39,6 +40,10 @@
           "type": "string",
           "description": "User's birthday.",
           "format": "date"
+        },
+        "phoneNumber": {
+            "type": "string",
+            "description": "User's phone number for custom account verification."
         }
       },
       "required": [
@@ -86,6 +91,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "sharedId": {
+            "type": "string",
+            "description": "The ID of the corresponding document in the `sharedNotes` collection if the note is public."
         }
       },
       "required": [
@@ -96,6 +105,21 @@
         "createdAt",
         "updatedAt"
       ]
+    },
+    "SharedNote": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Shared Note",
+      "type": "object",
+      "description": "A public, read-only copy of a user's note.",
+      "properties": {
+        "originalNoteId": { "type": "string" },
+        "originalUserId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
     },
     "Tag": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -215,6 +239,20 @@
             {
               "name": "noteId",
               "description": "The unique identifier for the note."
+            }
+          ]
+        }
+      },
+       {
+        "path": "/sharedNotes/{noteId}",
+        "definition": {
+          "entityName": "SharedNote",
+          "schema": { "$ref": "#/backend/entities/SharedNote" },
+          "description": "Stores public, read-only copies of notes. Anyone can read these documents, but only the server can write to them.",
+           "params": [
+            {
+              "name": "noteId",
+              "description": "The unique identifier for the shared note."
             }
           ]
         }
