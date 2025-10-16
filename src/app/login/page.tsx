@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Logo } from "@/components/logo"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { useAuth, useUser } from "@/firebase"
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth"
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, UserCredential } from "firebase/auth"
 import { useEffect, useState } from "react"
 import { useToast } from "@/hooks/use-toast"
 import { Eye, EyeOff } from "lucide-react"
@@ -49,16 +49,30 @@ export default function LoginPage() {
   })
 
   useEffect(() => {
-    if (user && !isUserLoading) {
+    if (user && !isUserLoading && user.emailVerified) {
       router.push("/dashboard")
     }
   }, [user, isUserLoading, router])
 
+  const handleSuccessfulLogin = (userCredential: UserCredential) => {
+    const user = userCredential.user;
+    if (user.emailVerified) {
+      toast({ title: "Login Successful", description: "Welcome back!" });
+      router.push("/dashboard");
+    } else {
+      toast({ 
+        variant: "destructive",
+        title: "Email Not Verified", 
+        description: "Please check your inbox to verify your email address before logging in." 
+      });
+      router.push("/verify-email");
+    }
+  };
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      await signInWithEmailAndPassword(auth, values.email, values.password)
-      toast({ title: "Login Successful", description: "Welcome back!" })
-      router.push("/dashboard")
+      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password)
+      handleSuccessfulLogin(userCredential);
     } catch (error: any) {
       console.error("Login failed:", error)
       toast({
@@ -72,7 +86,8 @@ export default function LoginPage() {
   async function handleGoogleSignIn() {
     try {
       const provider = new GoogleAuthProvider()
-      await signInWithPopup(auth, provider)
+      const userCredential = await signInWithPopup(auth, provider)
+      // Google users are considered verified.
       toast({ title: "Login Successful", description: "Welcome back!" })
       router.push("/dashboard")
     } catch (error: any) {
@@ -85,7 +100,7 @@ export default function LoginPage() {
     }
   }
 
-  if (isUserLoading || user) {
+  if (isUserLoading || (user && user.emailVerified)) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center bg-background">
         <p>Loading...</p>

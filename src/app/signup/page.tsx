@@ -53,7 +53,7 @@ export default function SignupPage() {
   })
 
   useEffect(() => {
-    if (user && !isUserLoading) {
+    if (user && !isUserLoading && user.emailVerified) {
       router.push("/dashboard")
     }
   }, [user, isUserLoading, router])
@@ -91,7 +91,7 @@ export default function SignupPage() {
         description: "Please check your inbox to verify your email address." 
       });
       
-      router.push("/dashboard");
+      router.push("/verify-email");
 
     } catch (error: any) {
       console.error("Signup failed:", error)
@@ -120,7 +120,7 @@ export default function SignupPage() {
     }
   }
 
-  if (isUserLoading || user) {
+  if (isUserLoading || (user && user.emailVerified)) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center bg-background">
         <p>Loading...</p>

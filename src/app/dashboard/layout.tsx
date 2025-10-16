@@ -36,8 +36,8 @@ import { Logo } from '@/components/logo';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { useAuth, useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { signOut, type IdTokenResult } from 'firebase/auth';
+import { useEffect } from 'react';
+import { signOut } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 
 const navItems = [
@@ -71,8 +71,12 @@ export default function DashboardLayout({
   const { toast } = useToast();
 
   useEffect(() => {
-    if (!isUserLoading && !user) {
+    if (isUserLoading) return; // Wait until user state is resolved
+
+    if (!user) {
       router.push('/login');
+    } else if (!user.emailVerified) {
+      router.push('/verify-email');
     }
   }, [user, isUserLoading, router]);
 
@@ -90,13 +94,15 @@ export default function DashboardLayout({
     }
   };
   
-  if (isUserLoading || !user) {
+  // Display a loading screen while checking auth state or if user is not verified yet
+  if (isUserLoading || !user || !user.emailVerified) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center bg-background">
         <p>Loading...</p>
       </div>
     );
   }
+
 
   return (
     <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
