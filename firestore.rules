@@ -1,33 +1,40 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
+      allow read, update, write: if isOwner(userId);
+      
+      // Allow user to list their own notes, files, and tags
+      allow list: if isOwner(userId);
 
-    match /users/{userId}/notes/{noteId} {
-      allow read, write, delete: if request.auth != null && request.auth.uid == userId;
-    }
+      match /notes/{noteId} {
+        allow read, write: if isOwner(userId);
+      }
 
-    match /users/{userId}/notes {
-        allow list: if request.auth != null && request.auth.uid == userId;
-    }
-
-    match /users/{userId}/files/{fileId} {
-      allow read, write, delete: if request.auth != null && request.auth.uid == userId;
-    }
-
-    match /users/{userId}/files {
-        allow list: if request.auth != null && request.auth.uid == userId;
-    }
-
-    match /conversations/{conversationId} {
-        allow read, write: if request.auth != null && request.auth.uid in resource.data.participantIds;
+      match /files/{fileId} {
+        allow read, write: if isOwner(userId);
+      }
+      
+      match /tags/{tagId} {
+        allow read, write: if isOwner(userId);
+      }
     }
     
-    match /conversations/{conversationId}/messages/{messageId} {
-        allow read, write: if request.auth != null && get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds.hasAny([request.auth.uid]);
+    match /conversations/{conversationId} {
+      allow read, write: if request.auth != null && request.auth.uid in resource.data.participantIds;
+      
+      match /messages/{messageId} {
+        // Anyone in the conversation can list and read messages
+        allow list, read: if request.auth != null && get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds.hasAny([request.auth.uid]);
+        // Only the sender can create a message
+        allow create: if request.auth != null && request.resource.data.senderId == request.auth.uid;
+      }
     }
   }
 }
