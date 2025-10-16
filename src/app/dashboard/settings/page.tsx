@@ -102,13 +102,13 @@ export default function SettingsPage() {
     if (userProfile) {
         profileForm.reset({
             fullName: user?.displayName || "",
-            bio: userProfile.bio || "Adams Ayoola Damisile is a web developer, pianist, and organist studying Business Information Technologies, passionate about technology, music, and creative innovation.",
+            bio: userProfile.bio || "",
             birthday: userProfile.birthday ? new Date(userProfile.birthday) : undefined,
         });
     } else if(user) {
          profileForm.reset({
             fullName: user.displayName || "",
-            bio: "Adams Ayoola Damisile is a web developer, pianist, and organist studying Business Information Technologies, passionate about technology, music, and creative innovation."
+            bio: ""
         });
     }
   }, [userProfile, user, profileForm]);
