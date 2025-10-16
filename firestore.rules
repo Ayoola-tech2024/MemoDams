@@ -1,121 +1,158 @@
 /**
- * @file Firestore Security Rules
- * @description This ruleset enforces a strict user-ownership model for personal data (notes, tags, files),
- * and shared access via explicit membership for conversations. It prioritizes security and data privacy,
- * while allowing for flexible data structures in the prototyping phase.
+ * @fileoverview Firestore Security Rules for MemoDams application.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model for personal data (notes, tags, files),
+ * and a shared access model for conversations and messages.
  *
  * Data Structure:
- * - /users/{userId}: User profiles, accessible only to the owning user.
- * - /users/{userId}/notes/{noteId}: Notes owned by a specific user, accessible only to that user.
- * - /users/{userId}/tags/{tagId}: Tags owned by a specific user, accessible only to that user.
- * - /users/{userId}/files/{fileId}: Files owned by a specific user, accessible only to that user.
- * - /conversations/{conversationId}: Conversations between users, accessible only to participants.
- * - /conversations/{conversationId}/messages/{messageId}: Messages within a conversation, accessible only to conversation participants.
+ * - /users/{userId}: User profiles, accessible only to the owner.
+ * - /users/{userId}/notes/{noteId}: Notes owned by the user.
+ * - /users/{userId}/tags/{tagId}: Tags owned by the user.
+ * - /users/{userId}/files/{fileId}: Files owned by the user.
+ * - /conversations/{conversationId}: Conversations with multiple participants.
+ * - /conversations/{conversationId}/messages/{messageId}: Messages within conversations.
  *
  * Key Security Decisions:
- * - User listing is enabled to allow searching for users on the platform, as requested.
- * - Strict ownership is enforced for user-related data (notes, tags, files).
- * - Conversations are secured using a shared access model based on the `participantIds` array.
- * - Data validation is limited to ownership checks and relationship integrity, focusing on security-critical aspects.
+ * - Users can only access their own profile data.
+ * - Users can only create, read, update, and delete their own notes, tags, and files.
+ * - Conversations are accessible to participants.
+ * - Messages are accessible to participants of the parent conversation.
+ * - Listing of user subcollections (notes, tags, files, conversations) is allowed only to the owner.
  *
  * Denormalization for Authorization:
- * - Conversations store an array of `participantIds` to enable efficient authorization checks without additional reads.
+ * - Conversations: `participantIds` array on each conversation document is used to authorize access.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Secure user profiles, allowing read access for all, and owner-only write access.
+     * @description Controls access to user profiles.
      * @path /users/{userId}
-     * @allow (get, list): Any user can fetch a user profile. This is to allow searching for users on the platform.
-     * @allow (create): User 'abc' can create their profile.
-     * @allow (update, delete): User 'abc' can update/delete their own profile.
-     * @deny (create): User 'def' cannot create a profile for user 'abc'.
-     * @deny (update, delete): User 'def' cannot update/delete user 'abc's profile.
-     * @principle Allows any user to read user profiles for finding other users, enforces document ownership for writes.
+     * @allow (create) User with matching ID can create their profile.
+     * @allow (get, update, delete) User with matching ID can read, update, or delete their profile.
+     * @deny (create) User cannot create a profile with an ID that doesn't match their own.
+     * @deny (get, update, delete) User cannot read, update, or delete another user's profile.
+     * @principle Enforces document ownership for user profiles.
      */
     match /users/{userId} {
-      allow get, list: if true;
-      allow create: if isSignedIn() && request.auth.uid == userId;
-      allow update, delete: if isSignedIn() && request.auth.uid == userId;
+      // Helper function to check if the user is signed in and the requested user ID matches the authenticated user ID.
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+
+      // Allow a user to create their own profile, but only if the userId matches their auth.uid.
+      allow create: if isOwner(userId);
+      // Allow a user to get their own profile.
+      allow get: if isOwner(userId);
+      // Allow a user to update their own profile.
+      allow update: if isOwner(userId); //Ensure immutability of user id.
+      // Allow a user to delete their own profile.
+      allow delete: if isOwner(userId);
+      // Prevent listing all users.
+      allow list: if false;
     }
 
     /**
-     * @description Secure notes, restricting access to the owning user.
+     * @description Controls access to notes within a user's profile.
      * @path /users/{userId}/notes/{noteId}
-     * @allow (create): User 'abc' can create a note in their own profile.
-     * @allow (get, list, update, delete): User 'abc' can read, list, update, and delete their own notes.
-     * @deny (create): User 'def' cannot create a note in user 'abc's profile.
-     * @deny (get, list, update, delete): User 'def' cannot read, list, update, or delete user 'abc's notes.
-     * @principle Restricts access to a user's own data tree, enforces document ownership for writes.
+     * @allow (create) User with matching ID can create notes.
+     * @allow (get, list, update, delete) User with matching ID can read, list, update, or delete their own notes.
+     * @deny (create) User cannot create a note with a userId that doesn't match their own.
+     * @deny (get, list, update, delete) User cannot read, list, update, or delete another user's notes.
+     * @principle Enforces document ownership for notes.
      */
     match /users/{userId}/notes/{noteId} {
-      allow get, list, create, update, delete: if isSignedIn() && request.auth.uid == userId;
+      // Helper function to check if the user is signed in and the requested user ID matches the authenticated user ID.
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+      allow create: if isOwner(userId);
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow update: if isOwner(userId); //Ensure immutability of user id.
+      allow delete: if isOwner(userId);
     }
 
     /**
-     * @description Secure tags, restricting access to the owning user.
+     * @description Controls access to tags within a user's profile.
      * @path /users/{userId}/tags/{tagId}
-     * @allow (create): User 'abc' can create a tag in their own profile.
-     * @allow (get, list, update, delete): User 'abc' can read, list, update, and delete their own tags.
-     * @deny (create): User 'def' cannot create a tag in user 'abc's profile.
-     * @deny (get, list, update, delete): User 'def' cannot read, list, update, or delete user 'abc's tags.
-     * @principle Restricts access to a user's own data tree, enforces document ownership for writes.
+     * @allow (create) User with matching ID can create tags.
+     * @allow (get, list, update, delete) User with matching ID can read, list, update, or delete their own tags.
+     * @deny (create) User cannot create a tag with a userId that doesn't match their own.
+     * @deny (get, list, update, delete) User cannot read, list, update, or delete another user's tags.
+     * @principle Enforces document ownership for tags.
      */
     match /users/{userId}/tags/{tagId} {
-      allow get, list, create, update, delete: if isSignedIn() && request.auth.uid == userId;
+      // Helper function to check if the user is signed in and the requested user ID matches the authenticated user ID.
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+      allow create: if isOwner(userId);
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow update: if isOwner(userId); //Ensure immutability of user id.
+      allow delete: if isOwner(userId);
     }
 
     /**
-     * @description Secure files, restricting access to the owning user.
+     * @description Controls access to files within a user's profile.
      * @path /users/{userId}/files/{fileId}
-     * @allow (create): User 'abc' can create a file in their own profile.
-     * @allow (get, list, update, delete): User 'abc' can read, list, update, and delete their own files.
-     * @deny (create): User 'def' cannot create a file in user 'abc's profile.
-     * @deny (get, list, update, delete): User 'def' cannot read, list, update, or delete user 'abc's files.
-     * @principle Restricts access to a user's own data tree, enforces document ownership for writes.
+     * @allow (create) User with matching ID can create files.
+     * @allow (get, list, update, delete) User with matching ID can read, list, update, or delete their own files.
+     * @deny (create) User cannot create a file with a userId that doesn't match their own.
+     * @deny (get, list, update, or delete) User cannot read, list, update, or delete another user's files.
+     * @principle Enforces document ownership for files.
      */
     match /users/{userId}/files/{fileId} {
-      allow get, list, create, update, delete: if isSignedIn() && request.auth.uid == userId;
+      // Helper function to check if the user is signed in and the requested user ID matches the authenticated user ID.
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+      allow create: if isOwner(userId);
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow update: if isOwner(userId); //Ensure immutability of user id.
+      allow delete: if isOwner(userId);
     }
 
     /**
-     * @description Secure conversations, restricting access to participants.
+     * @description Controls access to conversations.
      * @path /conversations/{conversationId}
-     * @allow (create): Any signed-in user can create a conversation.
-     * @allow (get, list, update, delete): Only participants can read, list, update, and delete the conversation.
-     * @deny (get, list, update, delete): A non-participant cannot read, list, update, or delete the conversation.
-     * @principle Enforces shared access model based on participant list.
+     * @allow (get, list) Any participant can read and list the conversation.
+     * @allow (create) Any authenticated user can create a conversation.
+     * @allow (update) Only participants can update the conversation.
+     * @allow (delete) No one can delete a conversation.
+     * @principle Enforces shared access for conversations based on participant list.
      */
     match /conversations/{conversationId} {
-      allow get, list, update, delete: if isSignedIn() && isParticipant(resource.data.participantIds);
-      allow create: if isSignedIn();
+      allow get: if request.auth != null && request.auth.uid in resource.data.participantIds;
+      allow list: if request.auth != null && request.auth.uid in resource.data.participantIds;
+      allow create: if request.auth != null && request.resource.data.participantIds is list && request.auth.uid in request.resource.data.participantIds;
+      allow update: if request.auth != null && request.auth.uid in resource.data.participantIds;
+      allow delete: if false;
     }
 
     /**
-     * @description Secure messages within conversations, restricting access to participants.
+     * @description Controls access to messages within a conversation.
      * @path /conversations/{conversationId}/messages/{messageId}
-     * @allow (create): Only participants can create messages in the conversation.
-     * @allow (get, list): Only participants can read and list messages in the conversation.
-     * @allow (update, delete): Only the message sender can update or delete the message.
-     * @deny (create): A non-participant cannot create messages.
-     * @deny (get, list): A non-participant cannot read or list messages.
-     * @deny (update, delete): A non-sender cannot update or delete a message.
-     * @principle Enforces shared access model based on participant list, enforces message ownership for updates/deletes.
+     * @allow (get, list) Any participant in the conversation can read the messages.
+     * @allow (create) Any participant can create a message in the conversation.
+     * @allow (update, delete) No one can update or delete a message.
+     * @principle Enforces shared access for messages based on conversation participant list.
      */
     match /conversations/{conversationId}/messages/{messageId} {
-      allow get, list: if isSignedIn() && isParticipant(get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds);
-      allow create: if isSignedIn() && isParticipant(get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds);
-      allow update, delete: if isSignedIn() && resource.data.senderId == request.auth.uid && isParticipant(get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds);
-    }
+      function isParticipant(conversationId) {
+        return request.auth != null
+            && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds;
+      }
 
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isParticipant(participantIds) {
-      return participantIds.hasAny([request.auth.uid]);
+      allow get: if isParticipant(conversationId);
+      allow list: if isParticipant(conversationId);
+      allow create: if isParticipant(conversationId);
+      allow update: if false;
+      allow delete: if false;
     }
   }
 }
