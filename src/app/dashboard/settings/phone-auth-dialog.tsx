@@ -67,14 +67,14 @@ export function PhoneAuthDialog({ user, enrolledFactors }: PhoneAuthDialogProps)
   const phoneForm = useForm<z.infer<typeof addPhoneSchema>>({
     resolver: zodResolver(addPhoneSchema),
     defaultValues: {
-      phoneNumber: ""
-    }
+      phoneNumber: "",
+    },
   });
   const codeForm = useForm<z.infer<typeof verifyCodeSchema>>({
     resolver: zodResolver(verifyCodeSchema),
     defaultValues: {
-      code: ""
-    }
+      code: "",
+    },
   });
 
   const onAddPhone = async (values: z.infer<typeof addPhoneSchema>) => {
@@ -232,6 +232,7 @@ export function PhoneAuthDialog({ user, enrolledFactors }: PhoneAuthDialogProps)
                         </FormItem>
                     )}
                     />
+                     <div id="recaptcha-container"></div>
                      <DialogFooter>
                         <Button type="button" variant="ghost" onClick={handleClose}>Cancel</Button>
                         <Button type="submit" disabled={isVerifying}>

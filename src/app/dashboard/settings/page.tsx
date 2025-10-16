@@ -211,7 +211,6 @@ export default function SettingsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold md:text-3xl">Settings</h1>
       </div>
-      <div id="recaptcha-container"></div>
       <div className="grid gap-6">
         <Card>
           <Form {...profileForm}>
