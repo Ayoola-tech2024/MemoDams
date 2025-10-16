@@ -252,7 +252,7 @@ export default function SettingsPage() {
                       <FormLabel>Short Bio</FormLabel>
                       <FormControl>
                         <Textarea
-                          className="min-h-[100px]"
+                          className="min-h-[120px]"
                           placeholder="Tell us a little about yourself"
                           {...field}
                         />
@@ -290,6 +290,9 @@ export default function SettingsPage() {
                         <PopoverContent className="w-auto p-0" align="start">
                           <Calendar
                             mode="single"
+                            captionLayout="dropdown-nav"
+                            fromYear={1900}
+                            toYear={new Date().getFullYear()}
                             selected={field.value}
                             onSelect={field.onChange}
                             disabled={(date) =>
@@ -569,3 +572,5 @@ export default function SettingsPage() {
     </>
   )
 }
+
+    
