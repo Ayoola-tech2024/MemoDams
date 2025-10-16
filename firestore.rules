@@ -1,27 +1,86 @@
+/**
+ * @fileOverview Firestore Security Rules for MemoDams application.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model. Each user has full control over their data, and no data is shared between users.
+ *
+ * Data Structure:
+ * - /users/{userId}: Stores user profiles, where {userId} must match the authenticated user's UID.
+ * - /users/{userId}/notes/{noteId}: Stores notes created by the user.
+ * - /users/{userId}/files/{fileId}: Stores files uploaded by the user.
+ *
+ * Key Security Decisions:
+ * - Users can only access their own data (profile, notes, and files).
+ * - Listing operations are restricted to the owner of the resource.
+ * - Data validation is minimized to focus on authorization.
+ *
+ * Denormalization for Authorization:
+ * The `userId` is embedded in the document path to enforce ownership.
+ */
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Admin rules for the entire users collection
-    match /users {
-      // Admins (by custom claim or initial bootstrap email) can list all users.
-      allow list: if request.auth.token.admin == true || request.auth.token.email == 'damisileayoola@gmail.com';
+    /**
+     * @description Controls access to user profiles.
+     * @path /users/{userId}
+     * @allow (create) - User with UID 'user123' can create their profile at /users/user123 if the document.id matches their UID.
+     * @allow (get, update, delete) - User with UID 'user123' can get, update, and delete their profile at /users/user123.
+     * @deny (create) - User with UID 'user456' cannot create a profile at /users/user123.
+     * @deny (get, update, delete) - User with UID 'user456' cannot get, update, or delete the profile at /users/user123.
+     * @principle Enforces document ownership for writes, restricts access to a user's own profile.
+     */
+    match /users/{userId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isOwner(userId) && resource.data.id == userId;
+      allow delete: if isOwner(userId) && resource.data.id == userId;
     }
 
-    // Rules for individual user documents
-    match /users/{userId} {
-      // Any authenticated user can create their own user document.
-      allow create: if request.auth.uid == userId;
-
-      // Users can get, update, and delete their own document.
-      // Admins can get any user's document.
-      allow get, update, delete: if request.auth.uid == userId || request.auth.token.admin == true;
-
-      // Rules for user-specific subcollections
-      match /{subcollection}/{docId} {
-        allow read, write: if request.auth.uid == userId;
+    /**
+     * @description Controls access to notes created by a user.
+     * @path /users/{userId}/notes/{noteId}
+     * @allow (create) - User with UID 'user123' can create a note under /users/user123/notes/{noteId}.
+     * @allow (get, update, delete) - User with UID 'user123' can get, update, and delete their note under /users/user123/notes/{noteId}.
+     * @allow (list) - User with UID 'user123' can list their notes under /users/user123/notes.
+     * @deny (create) - User with UID 'user456' cannot create a note under /users/user123/notes/{noteId}.
+     * @deny (get, update, delete) - User with UID 'user456' cannot get, update, or delete the note under /users/user123/notes/{noteId}.
+     * @principle Enforces document ownership for writes, restricts access to a user's own notes.
+     */
+    match /users/{userId}/notes/{noteId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
       }
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) && resource != null;
+      allow delete: if isOwner(userId) && resource != null;
+    }
+
+    /**
+     * @description Controls access to files uploaded by a user.
+     * @path /users/{userId}/files/{fileId}
+     * @allow (create) - User with UID 'user123' can create a file under /users/user123/files/{fileId}.
+     * @allow (get, update, delete) - User with UID 'user123' can get, update, and delete their file under /users/user123/files/{fileId}.
+     * @allow (list) - User with UID 'user123' can list their files under /users/user123/files.
+     * @deny (create) - User with UID 'user456' cannot create a file under /users/user123/files/{fileId}.
+     * @deny (get, update, delete) - User with UID 'user456' cannot get, update, or delete the file under /users/user123/files/{fileId}.
+     * @principle Enforces document ownership for writes, restricts access to a user's own files.
+     */
+    match /users/{userId}/files/{fileId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) && resource != null;
+      allow delete: if isOwner(userId) && resource != null;
     }
   }
 }
