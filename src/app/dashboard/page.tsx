@@ -21,33 +21,28 @@ import { cn } from "@/lib/utils"
 interface OverviewItemProps {
   title: string;
   icon: React.ElementType;
-  href: string;
   count: number;
   isLoading: boolean;
 }
 
-function OverviewCard({ title, icon: Icon, href, count, isLoading }: OverviewItemProps) {
+function OverviewCard({ title, icon: Icon, count, isLoading }: OverviewItemProps) {
   return (
-    <Link href={href} className="block h-full">
-      <Card className="transform-gpu transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/20 h-full">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">{title}</CardTitle>
-          <Icon className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <Skeleton className="h-8 w-1/3" />
-          ) : (
-            <div className="text-2xl font-bold">{count}</div>
-          )}
-          <p className="text-xs text-muted-foreground flex items-center">
-            View all <ArrowRight className="ml-1 h-3 w-3" />
-          </p>
-        </CardContent>
-      </Card>
-    </Link>
+    <Card className="h-full">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        <Icon className="h-4 w-4 text-muted-foreground" />
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <Skeleton className="h-8 w-1/3" />
+        ) : (
+          <div className="text-2xl font-bold">{count}</div>
+        )}
+      </CardContent>
+    </Card>
   )
 }
+
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -180,7 +175,7 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mt-6">
         {overviewItems.map((item, index) => (
           <div key={item.title} className="animate-in fade-in slide-in-from-top-4" style={{ animationDelay: `${index * 100}ms`, animationFillMode: 'backwards' }}>
-            <OverviewCard {...item} />
+            <OverviewCard title={item.title} icon={item.icon} count={item.count} isLoading={item.isLoading} />
           </div>
         ))}
       </div>
@@ -287,3 +282,5 @@ export default function DashboardPage() {
     </div>
   )
 }
+
+    
