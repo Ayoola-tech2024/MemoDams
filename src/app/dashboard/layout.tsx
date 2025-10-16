@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -28,7 +27,6 @@ import {
   Menu,
   Search,
   Settings,
-  Shield,
   User,
   Video,
 } from 'lucide-react';
@@ -40,6 +38,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { signOut, type IdTokenResult } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
+import { DigitalClock } from '@/components/digital-clock';
 
 const navItems = [
   { href: '/dashboard', icon: Home, label: 'Dashboard' },
@@ -70,18 +69,10 @@ export default function DashboardLayout({
   const auth = useAuth();
   const router = useRouter();
   const { toast } = useToast();
-  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     if (!isUserLoading && !user) {
       router.push('/login');
-    }
-    if (user) {
-      // Force refresh the token to get the latest custom claims.
-      user.getIdTokenResult(true).then((idTokenResult: IdTokenResult) => {
-        const userIsAdmin = idTokenResult.claims.admin === true || user.email === 'damisileayoola@gmail.com';
-        setIsAdmin(userIsAdmin);
-      });
     }
   }, [user, isUserLoading, router]);
 
@@ -119,9 +110,6 @@ export default function DashboardLayout({
               {navItems.map((item) => (
                 <NavLink key={item.href} {...item} />
               ))}
-               {isAdmin && (
-                <NavLink href="/dashboard/admin" icon={Shield} label="Admin" />
-              )}
             </nav>
           </div>
         </div>
@@ -149,9 +137,6 @@ export default function DashboardLayout({
                 {navItems.map((item) => (
                   <NavLink key={item.href} {...item} />
                 ))}
-                {isAdmin && (
-                  <NavLink href="/dashboard/admin" icon={Shield} label="Admin" />
-                )}
               </nav>
             </SheetContent>
           </Sheet>
@@ -167,6 +152,7 @@ export default function DashboardLayout({
               </div>
             </form>
           </div>
+          <DigitalClock />
           <ThemeToggle />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
