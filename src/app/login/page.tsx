@@ -66,14 +66,8 @@ export default function LoginPage() {
     } catch (error: any) {
       if (error.code === 'auth/multi-factor-required') {
         const resolver = getMultiFactorResolver(auth, error);
-        // Store resolver in session storage to use in the verification page
         sessionStorage.setItem('mfaResolver', JSON.stringify(resolver));
-        // We only support TOTP for now
-        const hint = resolver.hints.find(h => h.factorId === 'totp');
-        if (hint) {
-           sessionStorage.setItem('mfaHint', JSON.stringify(hint));
-        }
-        router.push('/login/verify-mfa');
+        router.push('/login/verify-phone');
       } else {
         console.error("Login failed:", error)
         toast({
@@ -192,5 +186,3 @@ export default function LoginPage() {
     </div>
   )
 }
-
-    

@@ -13,7 +13,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useTheme } from "next-themes"
-import { Sun, Moon, Laptop, User, Trash2, Mail, MessageSquare, Eye, EyeOff, CalendarIcon, Send, ShieldCheck } from "lucide-react"
+import { Sun, Moon, Laptop, User, Trash2, Mail, MessageSquare, Eye, EyeOff, CalendarIcon, Send, ShieldCheck, Phone } from "lucide-react"
 import Link from "next/link";
 import {
   AlertDialog,
@@ -31,12 +31,12 @@ import { useUser } from "@/firebase"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider, multiFactor, TotpMultiFactorGenerator } from "firebase/auth"
+import { updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider, multiFactor } from "firebase/auth"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition, useMemo } from "react";
 import { FileUploadDialog } from "@/components/file-upload-dialog";
 import { doc, setDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
@@ -45,7 +45,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { useAuth, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
-import { Enable2faDialog, Disable2faDialog } from "./2fa-dialogs";
+import { PhoneAuthDialog } from "./phone-auth-dialog";
 
 
 const profileSchema = z.object({
@@ -86,8 +86,8 @@ export default function SettingsPage() {
 
   const { data: userProfile, isLoading: isLoadingProfile } = useDoc(userProfileRef);
   
-  const is2faEnabled = useMemo(() => {
-    return user?.multiFactor?.enrolledFactors.length > 0;
+  const enrolledFactors = useMemo(() => {
+    return user?.multiFactor?.enrolledFactors || [];
   }, [user]);
   
   const profileForm = useForm<z.infer<typeof profileSchema>>({
@@ -211,6 +211,7 @@ export default function SettingsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold md:text-3xl">Settings</h1>
       </div>
+      <div id="recaptcha-container"></div>
       <div className="grid gap-6">
         <Card>
           <Form {...profileForm}>
@@ -481,29 +482,30 @@ export default function SettingsPage() {
         )}
         
         {isPasswordProvider && (
-          <Card>
+           <Card>
             <CardHeader>
               <CardTitle>Two-Factor Authentication</CardTitle>
               <CardDescription>
-                Add an additional layer of security to your account.
+                Add an extra layer of security to your account by requiring a phone verification code on new devices.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {is2faEnabled ? (
-                <div className="flex items-center gap-2 text-green-600">
-                  <ShieldCheck className="h-5 w-5" />
-                  <p className="font-medium">2FA is enabled.</p>
+              {enrolledFactors.length > 0 ? (
+                <div className="flex flex-col gap-2">
+                  <p className="font-medium text-green-600 flex items-center gap-2">
+                    <ShieldCheck className="h-5 w-5" />
+                    2FA is enabled.
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Verified phone number: <span className="font-semibold">{enrolledFactors[0].phoneNumber}</span>
+                  </p>
                 </div>
               ) : (
                 <p className="text-muted-foreground">Two-Factor Authentication is currently disabled.</p>
               )}
             </CardContent>
             <CardFooter className="border-t px-6 py-4">
-              {!is2faEnabled ? (
-                <Enable2faDialog user={user} />
-              ) : (
-                <Disable2faDialog user={user} />
-              )}
+                <PhoneAuthDialog user={user} enrolledFactors={enrolledFactors} />
             </CardFooter>
           </Card>
         )}
@@ -593,7 +595,7 @@ export default function SettingsPage() {
                     <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                     <AlertDialogDescription>
                       This action cannot be undone. This will permanently delete your account and remove your data from our servers.
-                    </dixalogDescription>
+                    </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -609,5 +611,3 @@ export default function SettingsPage() {
     </>
   )
 }
-
-    
