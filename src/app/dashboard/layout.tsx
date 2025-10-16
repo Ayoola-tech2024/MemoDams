@@ -26,7 +26,6 @@ import {
   Image as ImageIcon,
   LogOut,
   Menu,
-  MessageSquare,
   Search,
   Settings,
   User,
@@ -44,7 +43,6 @@ import { useToast } from '@/hooks/use-toast';
 const navItems = [
   { href: '/dashboard', icon: Home, label: 'Dashboard' },
   { href: '/dashboard/notes', icon: BookText, label: 'Notes' },
-  { href: '/dashboard/messages', icon: MessageSquare, label: 'Messages' },
   { href: '/dashboard/photos', icon: ImageIcon, label: 'Photos' },
   { href: '/dashboard/videos', icon: Video, label: 'Videos' },
   { href: '/dashboard/files', icon: FileArchive, label: 'Files' },
@@ -201,5 +199,3 @@ export default function DashboardLayout({
     </div>
   );
 }
-
-    

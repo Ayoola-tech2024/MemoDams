@@ -172,56 +172,6 @@
         "url",
         "uploadDate"
       ]
-    },
-    "Conversation": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Conversation",
-      "type": "object",
-      "description": "Represents a chat conversation between two or more users.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the conversation."
-        },
-        "participantIds": {
-          "type": "array",
-          "description": "Array of user IDs participating in the conversation.",
-          "items": {
-            "type": "string"
-          }
-        },
-        "lastMessage": {
-          "type": "object",
-          "properties": {
-            "text": { "type": "string" },
-            "senderId": { "type": "string" },
-            "createdAt": { "type": "string", "format": "date-time" }
-          }
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "format": "date-time"
-        }
-      },
-      "required": ["id", "participantIds", "createdAt", "updatedAt"]
-    },
-    "Message": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Message",
-      "type": "object",
-      "description": "Represents a single message within a conversation.",
-      "properties": {
-        "id": { "type": "string" },
-        "conversationId": { "type": "string" },
-        "senderId": { "type": "string" },
-        "text": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "conversationId", "senderId", "text", "createdAt"]
     }
   },
   "auth": {
@@ -266,24 +216,6 @@
           "entityName": "File",
           "schema": {
             "$ref": "#/backend/entities/File"
-          }
-        }
-      },
-      {
-        "path": "/conversations/{conversationId}",
-        "definition": {
-          "entityName": "Conversation",
-          "schema": {
-            "$ref": "#/backend/entities/Conversation"
-          }
-        }
-      },
-      {
-        "path": "/conversations/{conversationId}/messages/{messageId}",
-        "definition": {
-          "entityName": "Message",
-          "schema": {
-            "$ref": "#/backend/entities/Message"
           }
         }
       }
