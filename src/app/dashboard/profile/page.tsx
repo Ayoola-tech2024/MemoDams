@@ -13,7 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase"
 import { doc } from "firebase/firestore";
 import Link from "next/link";
-import { Settings, Calendar, LogIn } from "lucide-react";
+import { Settings, Calendar, LogIn, Cake } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 
@@ -118,6 +118,15 @@ export default function ProfilePage() {
                         )}
                     </div>
                 </div>
+                {userProfile?.birthday && (
+                  <div className="flex items-center">
+                    <Cake className="mr-3 h-5 w-5 text-muted-foreground" />
+                    <div className="grid gap-0.5">
+                        <p className="font-medium">Birthday</p>
+                        <p className="text-muted-foreground">{format(new Date(userProfile.birthday), "PPP")}</p>
+                    </div>
+                  </div>
+                )}
             </CardContent>
         </Card>
       </div>

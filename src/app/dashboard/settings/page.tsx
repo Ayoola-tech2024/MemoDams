@@ -13,7 +13,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useTheme } from "next-themes"
-import { Sun, Moon, Laptop, User, Trash2, Mail, MessageSquare, Eye, EyeOff } from "lucide-react"
+import { Sun, Moon, Laptop, User, Trash2, Mail, MessageSquare, Eye, EyeOff, CalendarIcon } from "lucide-react"
 import Link from "next/link";
 import {
   AlertDialog,
@@ -40,11 +40,16 @@ import { useEffect, useState, useTransition } from "react";
 import { FileUploadDialog } from "@/components/file-upload-dialog";
 import { doc, setDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 
 
 const profileSchema = z.object({
   fullName: z.string().min(1, { message: "Full name is required." }),
   bio: z.string().optional(),
+  birthday: z.date().optional(),
 })
 
 const passwordSchema = z.object({
@@ -97,11 +102,13 @@ export default function SettingsPage() {
     if (userProfile) {
         profileForm.reset({
             fullName: user?.displayName || "",
-            bio: userProfile.bio || ""
+            bio: userProfile.bio || "Adams Ayoola Damisile is a web developer, pianist, and organist studying Business Information Technologies, passionate about technology, music, and creative innovation.",
+            birthday: userProfile.birthday ? new Date(userProfile.birthday) : undefined,
         });
     } else if(user) {
          profileForm.reset({
-            fullName: user.displayName || ""
+            fullName: user.displayName || "",
+            bio: "Adams Ayoola Damisile is a web developer, pianist, and organist studying Business Information Technologies, passionate about technology, music, and creative innovation."
         });
     }
   }, [userProfile, user, profileForm]);
@@ -122,7 +129,14 @@ export default function SettingsPage() {
         // Once re-authenticated, proceed with updates
         await updateProfile(user, { displayName: values.fullName });
         
-        const profileData = { bio: values.bio, name: values.fullName };
+        const profileData: any = { 
+            bio: values.bio, 
+            name: values.fullName 
+        };
+        if (values.birthday && !userProfile?.birthday) {
+            profileData.birthday = values.birthday.toISOString();
+        }
+
         await setDoc(userProfileRef, profileData, { merge: true });
 
         toast({ title: "Profile Updated", description: "Your profile has been successfully updated." });
@@ -193,7 +207,7 @@ export default function SettingsPage() {
       <div className="grid gap-6">
         <Card>
           <Form {...profileForm}>
-            <form onSubmit={profileForm.handleSubmit(onProfileSubmit)}>
+            <form>
               <CardHeader>
                 <CardTitle>Personal Information</CardTitle>
                 <CardDescription>
@@ -238,11 +252,57 @@ export default function SettingsPage() {
                       <FormLabel>Short Bio</FormLabel>
                       <FormControl>
                         <Textarea
+                          className="min-h-[100px]"
                           placeholder="Tell us a little about yourself"
                           {...field}
                         />
                       </FormControl>
                        <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={profileForm.control}
+                  name="birthday"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col gap-2">
+                      <FormLabel>Birthday</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-[240px] pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                              disabled={!!userProfile?.birthday}
+                            >
+                              {field.value ? (
+                                format(field.value, "PPP")
+                              ) : (
+                                <span>Pick a date</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            disabled={(date) =>
+                              date > new Date() || date < new Date("1900-01-01") || !!userProfile?.birthday
+                            }
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {userProfile?.birthday ? "Your birthday cannot be changed." : "You can only set your birthday once."}
+                      </p>
+                      <FormMessage />
                     </FormItem>
                   )}
                 />
@@ -301,7 +361,7 @@ export default function SettingsPage() {
         {isPasswordProvider && (
             <Card>
             <Form {...passwordForm}>
-                <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)}>
+                <form>
                 <CardHeader>
                     <CardTitle>Change Password</CardTitle>
                     <CardDescription>

@@ -11,10 +11,11 @@ import {
 } from "@/components/ui/card"
 import { BookText, FileArchive, Image as ImageIcon, Video, ArrowRight, NotebookPen } from "lucide-react"
 import Link from 'next/link'
-import { useCollection, useFirestore, useUser, useMemoFirebase } from "@/firebase"
-import { collection, query, where, orderBy, getCountFromServer } from "firebase/firestore"
+import { useCollection, useDoc, useFirestore, useUser, useMemoFirebase } from "@/firebase"
+import { collection, query, where, orderBy, getCountFromServer, doc } from "firebase/firestore"
 import { useEffect, useState } from "react"
 import { Skeleton } from "@/components/ui/skeleton"
+import { BirthdayGreeting } from "@/components/birthday-greeting"
 
 interface OverviewItemProps {
   title: string;
@@ -67,6 +68,12 @@ export default function DashboardPage() {
   const [greeting, setGreeting] = useState({ text: "", emoji: "" });
   const [counts, setCounts] = useState<CountState>({ notes: 0, photos: 0, videos: 0, files: 0 });
   const [isLoadingCounts, setIsLoadingCounts] = useState(true);
+
+   const userProfileRef = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return doc(firestore, 'users', user.uid);
+  }, [user, firestore]);
+  const { data: userProfile } = useDoc(userProfileRef);
 
   useEffect(() => {
     setGreeting(getGreeting());
@@ -124,8 +131,18 @@ export default function DashboardPage() {
     { title: "Files", count: counts.files, icon: FileArchive, href: "/dashboard/files", isLoading: isLoadingCounts },
   ]
 
+  const isBirthday = () => {
+    if (!userProfile?.birthday) return false;
+    const today = new Date();
+    // Firestore timestamp can be converted to Date
+    const birthDate = new Date(userProfile.birthday);
+    return today.getMonth() === birthDate.getMonth() && today.getDate() === birthDate.getDate();
+  };
+
+
   return (
     <div className="animate-in fade-in duration-500">
+      {isBirthday() && <BirthdayGreeting name={user?.displayName?.split(' ')[0]} />}
       <div className="flex items-center justify-between">
         <div className="grid gap-1">
           <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
