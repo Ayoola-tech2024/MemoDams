@@ -1,41 +1,49 @@
 /**
- * @fileoverview Firestore Security Rules for MemoDams application.
+ * @file Firestore Security Rules for MemoDams application.
  *
- * Core Philosophy:
- * This ruleset enforces a strict user-ownership model. Each user can only
- * access their own data, including user profiles, notes, and files.
+ * @corePhilosophy This ruleset enforces a strict user-ownership model for personal data (notes, tags, files)
+ *  and shared access for conversations.  It prioritizes authorization and assumes that client-side
+ *  validation handles most data integrity checks.
  *
- * Data Structure:
- * - /users/{userId}: Stores user profile data.
- * - /users/{userId}/notes/{noteId}: Stores notes created by the user.
- * - /users/{userId}/files/{fileId}: Stores files uploaded by the user.
+ * @dataStructure
+ * - /users/{userId}: Stores user profiles.
+ * - /users/{userId}/notes/{noteId}: Stores notes private to each user.
+ * - /users/{userId}/tags/{tagId}: Stores tags private to each user.
+ * - /users/{userId}/files/{fileId}: Stores files private to each user.
+ * - /conversations/{conversationId}: Stores conversation metadata, accessible to participants.
+ * - /conversations/{conversationId}/messages/{messageId}: Stores messages within a conversation, accessible to participants.
  *
- * Key Security Decisions:
- * - Users can only read and write their own profiles.
- * - Users can only create, read, update, and delete their own notes and files.
- * - Listing of notes and files is restricted to the owner.
+ * @keySecurityDecisions
+ * - Users can only access their own data under their /users/{userId} path.
+ * - Listing of users is disallowed.
+ * - Conversations are secured using a shared access model, where participants listed in the `participantIds` array
+ *   have access to the conversation and its messages.
  *
- * Denormalization for Authorization:
- *  - The `userId` is embedded in the path for notes and files, and is checked against `request.auth.uid` to authorize access.
+ * @denormalizationForAuthorization
+ * - Conversations: The `participantIds` array on each `/conversations/{conversationId}` document is used to efficiently
+ *   control access to the conversation and its messages.
+ *
+ * @structuralSegregation
+ * - User-specific data (notes, tags, files) is stored under the /users/{userId} path, ensuring privacy.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows users to read and write their own profile data.
+     * @description Controls access to user profiles.
      * @path /users/{userId}
-     * @allow (get, update, delete) User with matching UID can access.
-     * @allow (create) User with matching UID can create.
-     * @deny (get, update, delete) User with non-matching UID attempts to access.
-     * @deny (create) User with non-matching UID attempts to create.
-     * @principle Enforces document ownership for all operations.
+     * @allow (create) Authenticated user can create their own profile.
+     * @allow (get) Authenticated user can read their own profile.
+     * @allow (update) Authenticated user can update their own profile.
+     * @allow (delete) Authenticated user can delete their own profile.
+     * @deny (list) Listing all users is not allowed.
+     * @deny (create) An unauthenticated user cannot create a user profile.
+     * @deny (update) A user cannot modify another user's profile.
+     * @deny (delete) A user cannot delete another user's profile.
+     * @principle Enforces user ownership for profile data.
      */
     match /users/{userId} {
-      function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
-      }
-
       allow get: if isOwner(userId);
       allow list: if false;
       allow create: if isOwner(userId);
@@ -44,49 +52,137 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows users to create, read, update, and delete their own notes.
+     * @description Controls access to notes for a specific user.
      * @path /users/{userId}/notes/{noteId}
-     * @allow (create, get, update, delete) User with matching UID can access.
-     * @deny (create, get, update, delete) User with non-matching UID attempts to access.
-     * @principle Enforces document ownership for writes.
+     * @allow (create) Authenticated user can create notes under their own user ID.
+     * @allow (get) Authenticated user can read notes under their own user ID.
+     * @allow (update) Authenticated user can update notes under their own user ID.
+     * @allow (delete) Authenticated user can delete notes under their own user ID.
+     * @deny (create) An unauthenticated user cannot create notes.
+     * @deny (create) A user cannot create notes under another user's ID.
+     * @deny (get) A user cannot read notes under another user's ID.
+     * @deny (update) A user cannot modify notes under another user's ID.
+     * @deny (delete) A user cannot delete notes under another user's ID.
+     * @principle Enforces user ownership for note data.
      */
     match /users/{userId}/notes/{noteId} {
-      function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
-      }
-
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
       allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      allow update: if isOwner(userId) && resource != null;
+      allow delete: if isOwner(userId) && resource != null;
     }
 
     /**
-     * @description Allows users to create, read, update, and delete their own files.
-     * @path /users/{userId}/files/{fileId}
-     * @allow (create, get, update, delete) User with matching UID can access.
-     * @deny (create, get, update, delete) User with non-matching UID attempts to access.
-     * @principle Enforces document ownership for writes.
+     * @description Controls access to tags for a specific user.
+     * @path /users/{userId}/tags/{tagId}
+     * @allow (create) Authenticated user can create tags under their own user ID.
+     * @allow (get) Authenticated user can read tags under their own user ID.
+     * @allow (update) Authenticated user can update tags under their own user ID.
+     * @allow (delete) Authenticated user can delete tags under their own user ID.
+     * @deny (create) An unauthenticated user cannot create tags.
+     * @deny (create) A user cannot create tags under another user's ID.
+     * @deny (get) A user cannot read tags under another user's ID.
+     * @deny (update) A user cannot modify tags under another user's ID.
+     * @deny (delete) A user cannot delete tags under another user's ID.
+     * @principle Enforces user ownership for tag data.
      */
-    match /users/{userId}/files/{fileId} {
-      function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
-      }
-
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
+    match /users/{userId}/tags/{tagId} {
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
       allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      allow update: if isOwner(userId) && resource != null;
+      allow delete: if isOwner(userId) && resource != null;
     }
+
+    /**
+     * @description Controls access to files for a specific user.
+     * @path /users/{userId}/files/{fileId}
+     * @allow (create) Authenticated user can create files under their own user ID.
+     * @allow (get) Authenticated user can read files under their own user ID.
+     * @allow (update) Authenticated user can update files under their own user ID.
+     * @allow (delete) Authenticated user can delete files under their own user ID.
+     * @deny (create) An unauthenticated user cannot create files.
+     * @deny (create) A user cannot create files under another user's ID.
+     * @deny (get) A user cannot read files under another user's ID.
+     * @deny (update) A user cannot modify files under another user's ID.
+     * @deny (delete) A user cannot delete files under another user's ID.
+     * @principle Enforces user ownership for file data.
+     */
+    match /users/{userId}/files/{fileId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) && resource != null;
+      allow delete: if isOwner(userId) && resource != null;
+    }
+
+    /**
+     * @description Controls access to conversations.
+     * @path /conversations/{conversationId}
+     * @allow (create) Any authenticated user can create a conversation.
+     * @allow (get) Only participants can read a conversation.
+     * @allow (update) Only participants can update a conversation.
+     * @allow (delete) Only participants can delete a conversation.
+     * @deny (create) An unauthenticated user cannot create a conversation.
+     * @deny (get) A user who isn't a participant cannot read a conversation.
+     * @deny (update) A user who isn't a participant cannot modify a conversation.
+     * @deny (delete) A user who isn't a participant cannot delete a conversation.
+     * @principle Enforces shared access based on the `participantIds` array.
+     */
+    match /conversations/{conversationId} {
+      allow get: if isSignedIn() && isParticipant(resource.data.participantIds);
+      allow list: if false; // Listing all conversations is disallowed for security reasons.
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && isParticipant(resource.data.participantIds) && resource != null;
+      allow delete: if isSignedIn() && isParticipant(resource.data.participantIds) && resource != null;
+    }
+
+    /**
+     * @description Controls access to messages within a conversation.
+     * @path /conversations/{conversationId}/messages/{messageId}
+     * @allow (create) Only participants can create messages in a conversation.
+     * @allow (get) Only participants can read messages in a conversation.
+     * @allow (update) No one is allowed to update a message
+     * @allow (delete) No one is allowed to delete a message
+     * @deny (create) An unauthenticated user cannot create messages.
+     * @deny (get) A user who isn't a participant cannot read messages.
+     * @principle Enforces shared access based on the `participantIds` array in the parent conversation.
+     */
+    match /conversations/{conversationId}/messages/{messageId} {
+      allow get: if isSignedIn() && isParticipant(get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds);
+      allow list: if isSignedIn() && isParticipant(get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds);
+      allow create: if isSignedIn() && isParticipant(get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds);
+      allow update: if false;
+      allow delete: if false;
+    }
+  }
+
+  // Helper functions
+
+  /**
+   * @description Checks if the request is authenticated.
+   * @return {bool} True if the request is authenticated, false otherwise.
+   */
+  function isSignedIn() {
+    return request.auth != null;
+  }
+
+  /**
+   * @description Checks if the authenticated user is the owner of the resource.
+   * @param {string} userId The user ID to compare against the authenticated user's ID.
+   * @return {bool} True if the user is the owner, false otherwise.
+   */
+  function isOwner(userId) {
+    return request.auth.uid == userId;
+  }
+
+  /**
+   * @description Checks if the authenticated user is a participant in the conversation.
+   * @param {array} participantIds An array of user IDs participating in the conversation.
+   * @return {bool} True if the user is a participant, false otherwise.
+   */
+  function isParticipant(participantIds) {
+    return participantIds.hasAny([request.auth.uid]);
   }
 }
