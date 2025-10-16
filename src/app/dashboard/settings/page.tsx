@@ -13,7 +13,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useTheme } from "next-themes"
-import { Sun, Moon, Laptop, User, Trash2, Mail, MessageSquare, Eye, EyeOff, CalendarIcon, Send, ShieldCheck, Phone } from "lucide-react"
+import { Sun, Moon, Laptop, Trash2, Mail, MessageSquare, Eye, EyeOff, CalendarIcon, ShieldCheck, ShieldOff } from "lucide-react"
 import Link from "next/link";
 import {
   AlertDialog,
@@ -45,7 +45,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { useAuth, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
-import { PhoneAuthDialog } from "./phone-auth-dialog";
+import { Enable2faDialog, Disable2faDialog } from "./2fa-dialogs";
 
 
 const profileSchema = z.object({
@@ -87,7 +87,7 @@ export default function SettingsPage() {
   const { data: userProfile, isLoading: isLoadingProfile } = useDoc(userProfileRef);
   
   const enrolledFactors = useMemo(() => {
-    return user?.multiFactor?.enrolledFactors || [];
+    return user ? multiFactor(user).enrolledFactors : [];
   }, [user]);
   
   const profileForm = useForm<z.infer<typeof profileSchema>>({
@@ -485,7 +485,7 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle>Two-Factor Authentication</CardTitle>
               <CardDescription>
-                Add an extra layer of security to your account by requiring a phone verification code on new devices.
+                Add an extra layer of security by requiring a code from an authenticator app on login.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -493,10 +493,10 @@ export default function SettingsPage() {
                 <div className="flex flex-col gap-2">
                   <p className="font-medium text-green-600 flex items-center gap-2">
                     <ShieldCheck className="h-5 w-5" />
-                    2FA is enabled.
+                    Authenticator App 2FA is enabled.
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    Verified phone number: <span className="font-semibold">{enrolledFactors[0].phoneNumber}</span>
+                    You'll be asked for a code from your app on new devices.
                   </p>
                 </div>
               ) : (
@@ -504,7 +504,11 @@ export default function SettingsPage() {
               )}
             </CardContent>
             <CardFooter className="border-t px-6 py-4">
-                <PhoneAuthDialog user={user} enrolledFactors={enrolledFactors} />
+               {enrolledFactors.length > 0 ? (
+                  <Disable2faDialog user={user} />
+                ) : (
+                  <Enable2faDialog user={user} />
+                )}
             </CardFooter>
           </Card>
         )}

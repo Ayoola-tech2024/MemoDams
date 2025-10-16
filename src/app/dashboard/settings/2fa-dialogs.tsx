@@ -56,16 +56,16 @@ export function Enable2faDialog({ user }: TwoFactorAuthDialogProps) {
 
   const form = useForm<z.infer<typeof verifyCodeSchema>>({
     resolver: zodResolver(verifyCodeSchema),
+    defaultValues: {
+      code: "",
+    }
   });
 
   const handleGenerateSecret = useCallback(async () => {
     setIsLoading(true);
     try {
       const session = await multiFactor(user).getSession();
-      const secret = await multiFactor(user).enroll(
-        TotpMultiFactorGenerator.forSession(session),
-        "MemoDams-2FA"
-      );
+      const secret = await TotpMultiFactorGenerator.generateSecret(session);
       setTotpSecret(secret);
       const qrCodeData = await QRCode.toDataURL(secret.toUri());
       setQrCodeDataUrl(qrCodeData);
@@ -89,7 +89,7 @@ export function Enable2faDialog({ user }: TwoFactorAuthDialogProps) {
         totpSecret,
         values.code
       );
-      await multiFactor(user).finalizeEnrollment(multiFactorAssertion);
+      await multiFactor(user).enroll(multiFactorAssertion, user.email || 'MemoDams-2FA');
       toast({
         title: "2FA Enabled Successfully",
         description: "Two-Factor Authentication is now active on your account.",
@@ -139,12 +139,12 @@ export function Enable2faDialog({ user }: TwoFactorAuthDialogProps) {
             </div>
         )}
 
-        {qrCodeDataUrl && (
+        {qrCodeDataUrl && totpSecret && (
             <div className="flex flex-col items-center gap-4 py-4">
                 <Image src={qrCodeDataUrl} alt="2FA QR Code" width={200} height={200} />
                 <div className="text-center">
                     <p className="text-sm text-muted-foreground">Or enter this code manually:</p>
-                    <p className="font-mono tracking-widest bg-muted p-2 rounded-md">{totpSecret?.secretKey}</p>
+                    <p className="font-mono tracking-widest bg-muted p-2 rounded-md">{totpSecret.secretKey}</p>
                 </div>
                  <Form {...form}>
                     <form onSubmit={form.handleSubmit(onVerify)} className="w-full max-w-xs space-y-4">
@@ -186,6 +186,9 @@ export function Disable2faDialog({ user }: TwoFactorAuthDialogProps) {
 
     const form = useForm<z.infer<typeof disable2faSchema>>({
         resolver: zodResolver(disable2faSchema),
+        defaultValues: {
+            password: "",
+        }
     });
 
     const onDisable = async (values: z.infer<typeof disable2faSchema>) => {
@@ -253,7 +256,7 @@ export function Disable2faDialog({ user }: TwoFactorAuthDialogProps) {
 
                         <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction type="submit" disabled={isDisabling}>
+                            <AlertDialogAction type="submit" disabled={isDisabling} className="bg-destructive hover:bg-destructive/90">
                                 {isDisabling ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                                 Confirm & Disable
                             </AlertDialogAction>
@@ -264,5 +267,3 @@ export function Disable2faDialog({ user }: TwoFactorAuthDialogProps) {
         </AlertDialog>
     )
 }
-
-    

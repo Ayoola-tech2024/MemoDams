@@ -4,7 +4,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/firebase';
-import { getMultiFactorResolver, TotpMultiFactorGenerator, MultiFactorResolver, MultiFactorError, MultiFactorInfo } from 'firebase/auth';
+import { getMultiFactorResolver, TotpMultiFactorGenerator, MultiFactorResolver, MultiFactorError } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,13 +31,26 @@ export default function VerifyMfaPage() {
   const mfaResolver = useMemo(() => {
     if (typeof window !== 'undefined') {
       const resolverJson = sessionStorage.getItem('mfaResolver');
-      return resolverJson ? JSON.parse(resolverJson) as MultiFactorResolver : null;
+      if (!resolverJson) return null;
+      try {
+        const parsed = JSON.parse(resolverJson);
+        // Basic validation to ensure it looks like a resolver
+        if (parsed && parsed.hints && parsed.session) {
+            return parsed as MultiFactorResolver;
+        }
+      } catch (e) {
+          console.error("Failed to parse MFA resolver from session storage", e);
+          return null;
+      }
     }
     return null;
   }, []);
 
   const form = useForm<z.infer<typeof verifyMfaSchema>>({
     resolver: zodResolver(verifyMfaSchema),
+    defaultValues: {
+        code: "",
+    }
   });
 
   useEffect(() => {
@@ -49,18 +62,26 @@ export default function VerifyMfaPage() {
   }, [mfaResolver, router, toast]);
 
   const onSubmit = async (values: z.infer<typeof verifyMfaSchema>) => {
+    if (!mfaResolver || !auth) return;
     setIsSubmitting(true);
     try {
       const resolver = getMultiFactorResolver(auth, mfaResolver as unknown as MultiFactorError);
+      
+      // Find the TOTP hint
+      const totpHint = resolver.hints.find(hint => hint.factorId === TotpMultiFactorGenerator.FACTOR_ID);
+      if (!totpHint) {
+          throw new Error("No TOTP factor enrolled.");
+      }
+
       const totpAssertion = TotpMultiFactorGenerator.assertionForSignIn(
-        resolver.hints[0].uid,
+        totpHint.uid,
         values.code
       );
-      const userCredential = await resolver.resolveSignIn(totpAssertion);
+      
+      await resolver.resolveSignIn(totpAssertion);
 
       // Clean up session storage
       sessionStorage.removeItem('mfaResolver');
-      sessionStorage.removeItem('mfaHint');
 
       toast({ title: "Login Successful", description: "Welcome back!" });
       router.replace('/dashboard');
@@ -75,7 +96,7 @@ export default function VerifyMfaPage() {
   if (!mfaResolver) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center bg-background">
-        <p>Loading...</p>
+        <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
   }
@@ -129,5 +150,3 @@ export default function VerifyMfaPage() {
     </div>
   );
 }
-
-    

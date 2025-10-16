@@ -65,9 +65,12 @@ export default function LoginPage() {
       handleSuccessfulLogin(userCredential);
     } catch (error: any) {
       if (error.code === 'auth/multi-factor-required') {
-        const resolver = getMultiFactorResolver(auth, error);
+        const resolver = getMultiFactorResolver(auth, error as MultiFactorError);
+        // Store the resolver in session storage to be used in the verification page.
         sessionStorage.setItem('mfaResolver', JSON.stringify(resolver));
-        router.push('/login/verify-phone');
+        // You can also pass the hint for which 2FA method to use.
+        // For TOTP, there's no specific hint needed beyond knowing it's not phone.
+        router.push('/login/verify-mfa');
       } else {
         console.error("Login failed:", error)
         toast({
