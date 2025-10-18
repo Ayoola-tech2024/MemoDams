@@ -13,7 +13,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useTheme } from "next-themes"
-import { Sun, Moon, Laptop, Trash2, Mail, MessageSquare, Eye, EyeOff, CalendarIcon, ShieldQuestion } from "lucide-react"
+import { Sun, Moon, Laptop, Trash2, Mail, MessageSquare, Eye, EyeOff, CalendarIcon, ShieldQuestion, Loader2 } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -62,6 +62,10 @@ const passwordSchema = z.object({
   path: ["confirmPassword"],
 })
 
+const confirmPasswordSchema = z.object({
+  password: z.string().min(1, "Password is required to save changes."),
+});
+
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();
@@ -71,6 +75,7 @@ export default function SettingsPage() {
   const router = useRouter();
 
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+  const [isConfirmSaveOpen, setIsConfirmSaveOpen] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
@@ -93,6 +98,11 @@ export default function SettingsPage() {
     defaultValues: { currentPassword: "", newPassword: "", confirmPassword: "" },
   });
 
+  const confirmPasswordForm = useForm<z.infer<typeof confirmPasswordSchema>>({
+    resolver: zodResolver(confirmPasswordSchema),
+    defaultValues: { password: "" },
+  });
+
   useEffect(() => {
     if (userProfile) {
         profileForm.reset({
@@ -108,6 +118,25 @@ export default function SettingsPage() {
     }
   }, [userProfile, user, profileForm]);
 
+  async function handleConfirmSave(confirmValues: z.infer<typeof confirmPasswordSchema>) {
+    if (!user || !user.email) return;
+
+    try {
+      const credential = EmailAuthProvider.credential(user.email, confirmValues.password);
+      await reauthenticateWithCredential(user, credential);
+      // Re-authentication successful, now proceed with saving the profile data
+      await onProfileSubmit(profileForm.getValues());
+      setIsConfirmSaveOpen(false);
+      confirmPasswordForm.reset();
+    } catch (error: any) {
+       if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') {
+            confirmPasswordForm.setError("password", { type: "manual", message: "Incorrect password."})
+        } else {
+            toast({ variant: "destructive", title: "Authentication Failed", description: error.message });
+        }
+    }
+  }
+
   async function onProfileSubmit(values: z.infer<typeof profileSchema>) {
     if (!user || !userProfileRef) return;
 
@@ -119,9 +148,8 @@ export default function SettingsPage() {
             name: values.fullName 
         };
         
-        // Only allow setting birthday if it doesn't exist
         if (values.birthday && !userProfile?.birthday) {
-            profileData.birthday = values.birthday.toISOString().split('T')[0]; // Store as YYYY-MM-DD
+            profileData.birthday = values.birthday.toISOString().split('T')[0];
         }
 
         await setDoc(userProfileRef, profileData, { merge: true });
@@ -184,7 +212,7 @@ export default function SettingsPage() {
       <div className="grid gap-6 mt-4">
         <Card>
           <Form {...profileForm}>
-            <form onSubmit={profileForm.handleSubmit(onProfileSubmit)}>
+            <form onSubmit={profileForm.handleSubmit(() => setIsConfirmSaveOpen(true))}>
               <CardHeader>
                 <CardTitle>Personal Information</CardTitle>
                 <CardDescription>
@@ -298,6 +326,7 @@ export default function SettingsPage() {
           </Form>
         </Card>
 
+        {isPasswordProvider && (
         <Card>
             <CardHeader>
                 <CardTitle>Security</CardTitle>
@@ -306,109 +335,108 @@ export default function SettingsPage() {
                 </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-6">
-                 {isPasswordProvider && (
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                        <div>
-                            <Label className="font-semibold">Change Password</Label>
-                            <p className="text-xs text-muted-foreground">It's a good practice to use a strong, unique password.</p>
-                        </div>
-                        <AlertDialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
-                            <AlertDialogTrigger asChild>
-                                <Button type="button" variant="outline" className="shrink-0 mt-2 sm:mt-0">Update Password</Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                                <Form {...passwordForm}>
-                                <form>
-                                <AlertDialogHeader>
-                                <AlertDialogTitle>Change Password</AlertDialogTitle>
-                                </AlertDialogHeader>
-                                <div className="grid gap-4 py-4">
-                                     <FormField
-                                        control={passwordForm.control}
-                                        name="currentPassword"
-                                        render={({ field }) => (
-                                        <FormItem className="grid gap-2">
-                                            <FormLabel>Current Password</FormLabel>
-                                            <div className="relative">
-                                            <FormControl>
-                                            <Input type={showCurrentPassword ? "text" : "password"} {...field} autoFocus />
-                                            </FormControl>
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="icon"
-                                                className="absolute inset-y-0 right-0 h-full px-3"
-                                                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                                            >
-                                                {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                            </Button>
-                                            </div>
-                                            <FormMessage />
-                                        </FormItem>
-                                        )}
-                                    />
-                                    <FormField
-                                    control={passwordForm.control}
-                                    name="newPassword"
-                                    render={({ field }) => (
-                                        <FormItem className="grid gap-2">
-                                        <FormLabel>New Password</FormLabel>
-                                        <div className="relative">
-                                            <FormControl>
-                                            <Input type={showNewPassword ? "text" : "password"} {...field} />
-                                            </FormControl>
-                                            <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="icon"
-                                            className="absolute inset-y-0 right-0 h-full px-3"
-                                            onClick={() => setShowNewPassword(!showNewPassword)}
-                                            >
-                                            {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                            </Button>
-                                        </div>
-                                        <FormMessage />
-                                        </FormItem>
-                                    )}
-                                    />
-                                    <FormField
-                                    control={passwordForm.control}
-                                    name="confirmPassword"
-                                    render={({ field }) => (
-                                        <FormItem className="grid gap-2">
-                                        <FormLabel>Confirm New Password</FormLabel>
-                                        <div className="relative">
-                                            <FormControl>
-                                            <Input type={showConfirmPassword ? "text" : "password"} {...field} />
-                                            </FormControl>
-                                            <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="icon"
-                                            className="absolute inset-y-0 right-0 h-full px-3"
-                                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                            >
-                                            {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                            </Button>
-                                        </div>
-                                        <FormMessage />
-                                        </FormItem>
-                                    )}
-                                    />
-                                </div>
-
-                                <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={passwordForm.handleSubmit(onPasswordSubmit)} disabled={passwordForm.formState.isSubmitting}>
-                                    {passwordForm.formState.isSubmitting ? "Updating..." : "Confirm and Update"}
-                                </AlertDialogAction>
-                                </AlertDialogFooter>
-                                </form>
-                                </Form>
-                            </AlertDialogContent>
-                        </AlertDialog>
+                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                        <Label className="font-semibold">Change Password</Label>
+                        <p className="text-xs text-muted-foreground">It's a good practice to use a strong, unique password.</p>
                     </div>
-                )}
+                    <AlertDialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
+                        <AlertDialogTrigger asChild>
+                            <Button type="button" variant="outline" className="shrink-0 mt-2 sm:mt-0">Update Password</Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <Form {...passwordForm}>
+                            <form>
+                            <AlertDialogHeader>
+                            <AlertDialogTitle>Change Password</AlertDialogTitle>
+                            </AlertDialogHeader>
+                            <div className="grid gap-4 py-4">
+                                    <FormField
+                                    control={passwordForm.control}
+                                    name="currentPassword"
+                                    render={({ field }) => (
+                                    <FormItem className="grid gap-2">
+                                        <FormLabel>Current Password</FormLabel>
+                                        <div className="relative">
+                                        <FormControl>
+                                        <Input type={showCurrentPassword ? "text" : "password"} {...field} autoFocus />
+                                        </FormControl>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="absolute inset-y-0 right-0 h-full px-3"
+                                            onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                                        >
+                                            {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                        </Button>
+                                        </div>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                control={passwordForm.control}
+                                name="newPassword"
+                                render={({ field }) => (
+                                    <FormItem className="grid gap-2">
+                                    <FormLabel>New Password</FormLabel>
+                                    <div className="relative">
+                                        <FormControl>
+                                        <Input type={showNewPassword ? "text" : "password"} {...field} />
+                                        </FormControl>
+                                        <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="absolute inset-y-0 right-0 h-full px-3"
+                                        onClick={() => setShowNewPassword(!showNewPassword)}
+                                        >
+                                        {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                        </Button>
+                                    </div>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                                />
+                                <FormField
+                                control={passwordForm.control}
+                                name="confirmPassword"
+                                render={({ field }) => (
+                                    <FormItem className="grid gap-2">
+                                    <FormLabel>Confirm New Password</FormLabel>
+                                    <div className="relative">
+                                        <FormControl>
+                                        <Input type={showConfirmPassword ? "text" : "password"} {...field} />
+                                        </FormControl>
+                                        <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="absolute inset-y-0 right-0 h-full px-3"
+                                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                        >
+                                        {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                        </Button>
+                                    </div>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                                />
+                            </div>
+
+                            <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={passwordForm.handleSubmit(onPasswordSubmit)} disabled={passwordForm.formState.isSubmitting}>
+                                {passwordForm.formState.isSubmitting ? "Updating..." : "Confirm and Update"}
+                            </AlertDialogAction>
+                            </AlertDialogFooter>
+                            </form>
+                            </Form>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                </div>
+                
                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
                         <Label className="font-semibold">Security Question</Label>
@@ -429,6 +457,7 @@ export default function SettingsPage() {
                 </div>
             </CardContent>
         </Card>
+        )}
         
         <Card>
           <CardHeader>
@@ -516,6 +545,43 @@ export default function SettingsPage() {
           </CardFooter>
         </Card>
       </div>
+
+       <AlertDialog open={isConfirmSaveOpen} onOpenChange={setIsConfirmSaveOpen}>
+        <AlertDialogContent>
+          <Form {...confirmPasswordForm}>
+            <form onSubmit={confirmPasswordForm.handleSubmit(handleConfirmSave)}>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Confirm Your Identity</AlertDialogTitle>
+                <AlertDialogDescription>
+                  For your security, please enter your password to save changes.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <div className="py-4">
+                 <FormField
+                    control={confirmPasswordForm.control}
+                    name="password"
+                    render={({ field }) => (
+                    <FormItem className="grid gap-2">
+                        <FormLabel>Password</FormLabel>
+                        <FormControl>
+                            <Input type="password" {...field} autoFocus />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+              </div>
+              <AlertDialogFooter>
+                <AlertDialogCancel type="button" onClick={() => { setIsConfirmSaveOpen(false); confirmPasswordForm.reset(); }}>Cancel</AlertDialogCancel>
+                <AlertDialogAction type="submit" disabled={confirmPasswordForm.formState.isSubmitting}>
+                   {confirmPasswordForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Confirm & Save
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </form>
+          </Form>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }
