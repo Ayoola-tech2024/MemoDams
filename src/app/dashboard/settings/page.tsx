@@ -14,7 +14,6 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useTheme } from "next-themes"
 import { Sun, Moon, Laptop, Trash2, Mail, MessageSquare, Eye, EyeOff, CalendarIcon, ShieldQuestion } from "lucide-react"
-import Link from "next/link";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -72,11 +71,9 @@ export default function SettingsPage() {
   const router = useRouter();
 
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
-  const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showProfileConfirmPassword, setShowProfileConfirmPassword] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const userProfileRef = useMemoFirebase(() => {
@@ -96,11 +93,6 @@ export default function SettingsPage() {
     defaultValues: { currentPassword: "", newPassword: "", confirmPassword: "" },
   });
 
-  const profileConfirmPasswordForm = useForm<{password: string}>({
-     resolver: zodResolver(z.object({ password: z.string().min(1, "Password is required.")})),
-     defaultValues: { password: "" }
-  });
-
   useEffect(() => {
     if (userProfile) {
         profileForm.reset({
@@ -117,41 +109,28 @@ export default function SettingsPage() {
   }, [userProfile, user, profileForm]);
 
   async function onProfileSubmit(values: z.infer<typeof profileSchema>) {
-    if (!user || !user.email || !userProfileRef) return;
-
-    const password = profileConfirmPasswordForm.getValues("password");
-    if(!password) {
-        profileConfirmPasswordForm.setError("password", {type: "manual", message: "Password is required to save changes."});
-        return;
-    }
+    if (!user || !userProfileRef) return;
 
     try {
-        const credential = EmailAuthProvider.credential(user.email, password);
-        await reauthenticateWithCredential(user, credential);
-
         await updateProfile(user, { displayName: values.fullName });
         
         const profileData: any = { 
             bio: values.bio, 
             name: values.fullName 
         };
+        
+        // Only allow setting birthday if it doesn't exist
         if (values.birthday && !userProfile?.birthday) {
-            profileData.birthday = values.birthday.toISOString();
+            profileData.birthday = values.birthday.toISOString().split('T')[0]; // Store as YYYY-MM-DD
         }
 
         await setDoc(userProfileRef, profileData, { merge: true });
 
         toast({ title: "Profile Updated", description: "Your profile has been successfully updated." });
-        profileConfirmPasswordForm.reset();
-        setIsProfileDialogOpen(false);
         
     } catch (error: any) {
         console.error("Profile update failed", error);
-        if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') {
-             profileConfirmPasswordForm.setError("password", { type: "manual", message: "Incorrect password."})
-        } else {
-             toast({ variant: "destructive", title: "Profile Update Failed", description: error.message });
-        }
+        toast({ variant: "destructive", title: "Profile Update Failed", description: error.message });
     }
   }
 
@@ -179,12 +158,16 @@ export default function SettingsPage() {
   async function handlePhotoUploadComplete(downloadURL: string) {
     if (!user || !userProfileRef) return;
 
-    await updateProfile(user, { photoURL: downloadURL });
-    const photoData = { profilePictureUrl: downloadURL };
-    await setDoc(userProfileRef, photoData, { merge: true });
+    try {
+        await updateProfile(user, { photoURL: downloadURL });
+        const photoData = { profilePictureUrl: downloadURL };
+        await setDoc(userProfileRef, photoData, { merge: true });
 
-    toast({ title: "Profile Photo Updated", description: "Your new photo has been saved."});
-    startTransition(() => router.refresh());
+        toast({ title: "Profile Photo Updated", description: "Your new photo has been saved."});
+        startTransition(() => router.refresh());
+    } catch (error: any) {
+        toast({ variant: "destructive", title: "Update Failed", description: "Could not update profile photo."});
+    }
   }
   
   const emailSubject = "Issue report from MemoDams";
@@ -201,7 +184,7 @@ export default function SettingsPage() {
       <div className="grid gap-6 mt-4">
         <Card>
           <Form {...profileForm}>
-            <form>
+            <form onSubmit={profileForm.handleSubmit(onProfileSubmit)}>
               <CardHeader>
                 <CardTitle>Personal Information</CardTitle>
                 <CardDescription>
@@ -307,51 +290,9 @@ export default function SettingsPage() {
                 />
               </CardContent>
               <CardFooter className="border-t px-6 py-4">
-                 <AlertDialog open={isProfileDialogOpen} onOpenChange={setIsProfileDialogOpen}>
-                    <AlertDialogTrigger asChild>
-                        <Button type="button">Save Changes</Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                       <Form {...profileConfirmPasswordForm}>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>Confirm Your Identity</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                For your security, please enter your current password to make this change.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <FormField
-                            control={profileConfirmPasswordForm.control}
-                            name="password"
-                            render={({ field }) => (
-                            <FormItem className="grid gap-2 mt-4">
-                                <FormLabel>Current Password</FormLabel>
-                                <div className="relative">
-                                    <FormControl>
-                                    <Input type={showProfileConfirmPassword ? "text" : "password"} {...field} autoFocus />
-                                    </FormControl>
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        className="absolute inset-y-0 right-0 h-full px-3"
-                                        onClick={() => setShowProfileConfirmPassword(!showProfileConfirmPassword)}
-                                    >
-                                        {showProfileConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                    </Button>
-                                </div>
-                                <FormMessage />
-                            </FormItem>
-                            )}
-                        />
-                        <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={profileForm.handleSubmit(onProfileSubmit)} disabled={profileForm.formState.isSubmitting}>
-                                {profileForm.formState.isSubmitting ? "Saving..." : "Confirm and Save"}
-                            </AlertDialogAction>
-                        </AlertDialogFooter>
-                       </Form>
-                    </AlertDialogContent>
-                </AlertDialog>
+                <Button type="submit" disabled={profileForm.formState.isSubmitting}>
+                  {profileForm.formState.isSubmitting ? "Saving..." : "Save Changes"}
+                </Button>
               </CardFooter>
             </form>
           </Form>
@@ -561,7 +502,7 @@ export default function SettingsPage() {
           <CardFooter className="border-t border-destructive/50 px-6 py-4">
              <TooltipProvider>
               <Tooltip>
-                <TooltipTrigger>
+                <TooltipTrigger asChild>
                    <Button variant="destructive" disabled>
                       <Trash2 className="mr-2 h-4 w-4" />
                       Delete My Account
@@ -578,5 +519,3 @@ export default function SettingsPage() {
     </>
   )
 }
-
-    
