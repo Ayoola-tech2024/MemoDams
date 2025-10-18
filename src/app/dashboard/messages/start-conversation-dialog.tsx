@@ -86,7 +86,7 @@ export function StartConversationDialog({ trigger, currentUserId, onConversation
         if (conversationSnap.exists()) {
             // Conversation already exists, just open it
             onConversationCreated(conversationId, recipient.id);
-            setOpen(false);
+            handleClose();
             return;
         }
 
@@ -97,7 +97,11 @@ export function StartConversationDialog({ trigger, currentUserId, onConversation
             participantIds: [currentUserId, recipient.id],
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
-            lastMessage: null,
+            lastMessage: {
+                text: "Conversation started",
+                senderId: currentUserId,
+                createdAt: serverTimestamp(),
+            },
         };
         batch.set(conversationRef, conversationData);
 
@@ -112,13 +116,18 @@ export function StartConversationDialog({ trigger, currentUserId, onConversation
 
         toast({ title: "Conversation Started", description: `You can now message ${recipient.name}.` });
         onConversationCreated(conversationId, recipient.id);
-        setOpen(false);
+        handleClose();
     } catch (error) {
         console.error("Error starting conversation: ", error);
         toast({ variant: "destructive", title: "Failed to start conversation" });
     }
   };
   
+  const handleClose = () => {
+    setOpen(false);
+    resetState();
+  }
+
   const resetState = () => {
     setSearchTerm("");
     setSearchResults([]);
@@ -187,3 +196,5 @@ export function StartConversationDialog({ trigger, currentUserId, onConversation
     </Dialog>
   );
 }
+
+    

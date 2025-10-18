@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { MessageSquarePlus, MessageSquare, ArrowLeft } from 'lucide-react';
 import { useUser } from '@/firebase';
 import { cn } from '@/lib/utils';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function MessagesPage() {
   const [selectedConversation, setSelectedConversation] = useState<{ id: string, recipientId: string } | null>(null);
@@ -25,14 +26,15 @@ export default function MessagesPage() {
   if (!user) return null;
 
   return (
-    <div className="grid h-[calc(100vh-8rem)] grid-cols-1 md:grid-cols-3 lg:grid-cols-4 md:gap-4 overflow-hidden">
+    <div className="grid h-[calc(100vh-8rem)] grid-cols-1 md:grid-cols-3 lg:grid-cols-4 md:gap-4 overflow-hidden relative">
       {/* --- Left Column: Conversation List --- */}
       <div className={cn(
+        "absolute md:static top-0 left-0 w-full h-full z-10 bg-background md:z-auto",
         "col-span-1 flex flex-col border-r",
         "transition-transform duration-300 ease-in-out md:translate-x-0",
         selectedConversation ? "-translate-x-full" : "translate-x-0"
       )}>
-        <div className="flex items-center justify-between p-4 border-b">
+        <div className="flex items-center justify-between p-4 border-b shrink-0">
           <h1 className="text-2xl font-semibold">Messages</h1>
           <StartConversationDialog
             currentUserId={user.uid}
@@ -44,16 +46,20 @@ export default function MessagesPage() {
             }
           />
         </div>
-        <ConversationList 
-            onConversationSelect={handleSelectConversation}
-            selectedConversationId={selectedConversation?.id || null}
-        />
+        <ScrollArea className="flex-1">
+          <ConversationList 
+              onConversationSelect={handleSelectConversation}
+              selectedConversationId={selectedConversation?.id || null}
+          />
+        </ScrollArea>
       </div>
 
       {/* --- Right Column: Chat Window / Placeholder --- */}
       <div className={cn(
-          "absolute inset-0 z-10 bg-background transition-transform duration-300 ease-in-out md:static md:col-span-2 lg:col-span-3 md:translate-x-0",
-          selectedConversation ? "translate-x-0" : "translate-x-full"
+          "absolute md:static top-0 left-0 w-full h-full bg-background md:z-auto",
+          "md:col-span-2 lg:col-span-3",
+          "transition-transform duration-300 ease-in-out md:translate-x-0",
+          selectedConversation ? "translate-x-0 z-20" : "translate-x-full"
         )}>
         {selectedConversation ? (
           <ChatWindow

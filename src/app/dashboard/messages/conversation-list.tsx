@@ -2,17 +2,12 @@
 "use client";
 
 import { useCollection, useDoc, useFirestore, useUser, useMemoFirebase } from '@/firebase';
-import { collection, query, where, orderBy, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy, doc, getDoc, onSnapshot, Unsubscribe } from 'firebase/firestore';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { useEffect, useState } from 'react';
-
-// This is a reference stored in the user's subcollection
-interface ConversationRef {
-  conversationId: string;
-}
 
 // This is the actual conversation document from the root collection
 interface Conversation {
@@ -51,11 +46,11 @@ function ConversationListItem({ conversation, currentUserId, isSelected, onSelec
   const { data: recipientProfile, isLoading } = useDoc<UserProfile>(recipientProfileRef);
 
   if (isLoading) return <ConversationSkeleton />;
-  if (!recipientProfile) return null;
+  if (!recipientProfile || !recipientId) return null;
 
   return (
     <button
-      onClick={() => onSelect(conversation.id, recipientId!)}
+      onClick={() => onSelect(conversation.id, recipientId)}
       className={cn(
         "flex w-full items-start gap-3 rounded-lg p-3 text-left transition-colors",
         isSelected ? "bg-muted" : "hover:bg-muted/50"
@@ -68,9 +63,9 @@ function ConversationListItem({ conversation, currentUserId, isSelected, onSelec
       <div className="flex-1 truncate">
         <div className="flex items-baseline justify-between">
           <p className="font-semibold">{recipientProfile.name}</p>
-          {conversation.lastMessage?.createdAt && (
+          {conversation.updatedAt?.seconds && (
             <p className="text-xs text-muted-foreground">
-              {formatDistanceToNow(new Date(conversation.lastMessage.createdAt.seconds * 1000), { addSuffix: true })}
+              {formatDistanceToNow(new Date(conversation.updatedAt.seconds * 1000), { addSuffix: true })}
             </p>
           )}
         </div>
@@ -107,54 +102,25 @@ export function ConversationList({ onConversationSelect, selectedConversationId 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 1. Get the list of conversation IDs from the user's subcollection
-  const conversationRefsQuery = useMemoFirebase(() => {
-    if (!user || !firestore) return null;
-    return collection(firestore, 'users', user.uid, 'conversations');
-  }, [user, firestore]);
+  const conversationsQuery = useMemoFirebase(() => {
+      if (!user?.uid || !firestore) return null;
+      return query(
+          collection(firestore, "conversations"),
+          where("participantIds", "array-contains", user.uid),
+          orderBy("updatedAt", "desc")
+      );
+  }, [user?.uid, firestore]);
 
-  const { data: conversationRefs } = useCollection<ConversationRef>(conversationRefsQuery);
-
-  // 2. Fetch the actual conversation documents based on the IDs
+  const { data, isLoading: isLoadingConversations, error } = useCollection<Conversation>(conversationsQuery);
+  
   useEffect(() => {
-    if (!conversationRefs || !firestore) {
-      // If there are no refs, we're not loading and there are no convos
-      if(conversationRefs !== null) { // only set loading to false if query has run and returned empty
-         setConversations([]);
-         setIsLoading(false);
-      }
-      return;
-    };
-    
-    // If there are refs but the array is empty
-    if(conversationRefs.length === 0) {
-        setConversations([]);
-        setIsLoading(false);
-        return;
+    if (data) {
+        setConversations(data);
     }
-
-    setIsLoading(true);
-    const fetchConversations = async () => {
-      try {
-        const conversationPromises = conversationRefs.map(ref => 
-          getDoc(doc(firestore, 'conversations', ref.conversationId))
-        );
-        const conversationSnapshots = await Promise.all(conversationPromises);
-        const convos = conversationSnapshots
-          .map(snap => snap.exists() ? { id: snap.id, ...snap.data() } as Conversation : null)
-          .filter((c): c is Conversation => c !== null)
-          .sort((a, b) => b.updatedAt.seconds - a.updatedAt.seconds); // Sort by last update
-          
-        setConversations(convos);
-      } catch (error) {
-        console.error("Error fetching conversations:", error);
-      } finally {
+    if(!isLoadingConversations) {
         setIsLoading(false);
-      }
-    };
-
-    fetchConversations();
-  }, [conversationRefs, firestore]);
+    }
+  }, [data, isLoadingConversations]);
 
 
   if (isLoading) {
@@ -167,8 +133,8 @@ export function ConversationList({ onConversationSelect, selectedConversationId 
   
   if (conversations.length === 0) {
     return (
-       <div className="p-4 text-center text-sm text-muted-foreground">
-          No conversations started yet.
+       <div className="p-4 text-center text-sm text-muted-foreground h-full flex items-center justify-center">
+          <p>No conversations started yet.</p>
        </div>
     )
   }
@@ -187,3 +153,5 @@ export function ConversationList({ onConversationSelect, selectedConversationId 
     </div>
   );
 }
+
+    

@@ -45,6 +45,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { SecurityQuestionDialog } from "./security-question-dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+
 
 const profileSchema = z.object({
   fullName: z.string().min(1, { message: "Full name is required." }),
@@ -184,15 +186,7 @@ export default function SettingsPage() {
     toast({ title: "Profile Photo Updated", description: "Your new photo has been saved."});
     startTransition(() => router.refresh());
   }
-
-  const handleDeleteAccount = () => {
-    toast({
-      variant: "destructive",
-      title: "Account Deletion Requested",
-      description: "This feature is not yet implemented. In a real application, this would permanently delete your account and all associated data.",
-    })
-  }
-
+  
   const emailSubject = "Issue report from MemoDams";
   const whatsAppText = "Hello, I have a question about MemoDams.";
   const isPasswordProvider = user?.providerData.some((provider) => provider.providerId === "password");
@@ -372,14 +366,14 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent className="grid gap-6">
                  {isPasswordProvider && (
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         <div>
-                            <Label>Change Password</Label>
+                            <Label className="font-semibold">Change Password</Label>
                             <p className="text-xs text-muted-foreground">It's a good practice to use a strong, unique password.</p>
                         </div>
                         <AlertDialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
                             <AlertDialogTrigger asChild>
-                                <Button type="button" variant="outline" className="shrink-0">Update Password</Button>
+                                <Button type="button" variant="outline" className="shrink-0 mt-2 sm:mt-0">Update Password</Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                                 <Form {...passwordForm}>
@@ -474,9 +468,9 @@ export default function SettingsPage() {
                         </AlertDialog>
                     </div>
                 )}
-                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
-                        <Label>Security Question</Label>
+                        <Label className="font-semibold">Security Question</Label>
                         <p className="text-xs text-muted-foreground">
                              {userProfile?.secretQuestion ? `Question set: "${userProfile.secretQuestion}"` : "Add an extra layer of security for new devices."}
                         </p>
@@ -485,7 +479,7 @@ export default function SettingsPage() {
                         user={user} 
                         userProfile={userProfile}
                         trigger={
-                            <Button variant="outline" className="shrink-0">
+                            <Button variant="outline" className="shrink-0 mt-2 sm:mt-0">
                                 <ShieldQuestion className="mr-2 h-4 w-4" />
                                 {userProfile?.secretQuestion ? "Change Question" : "Set Question"}
                             </Button>
@@ -535,24 +529,21 @@ export default function SettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Your feedback is valuable in helping us improve MemoDams.
-            </p>
+             <div className="flex flex-col sm:flex-row flex-wrap items-center gap-2">
+                <Button asChild variant="outline">
+                <a href={`mailto:damisileayoola@gmail.com?subject=${encodeURIComponent(emailSubject)}`}>
+                    <Mail className="mr-2 h-4 w-4" />
+                    Report an Issue
+                </a>
+                </Button>
+                <Button asChild variant="outline">
+                <a href={`https://wa.me/2348169787869?text=${encodeURIComponent(whatsAppText)}`} target="_blank" rel="noopener noreferrer">
+                    <MessageSquare className="mr-2 h-4 w-4" />
+                    Contact Developer
+                </a>
+                </Button>
+            </div>
           </CardContent>
-           <CardFooter className="border-t px-6 py-4 flex flex-wrap items-center gap-2">
-            <Button asChild variant="outline">
-              <a href={`mailto:damisileayoola@gmail.com?subject=${encodeURIComponent(emailSubject)}`}>
-                <Mail className="mr-2 h-4 w-4" />
-                Report an Issue
-              </a>
-            </Button>
-            <Button asChild variant="outline">
-              <a href={`https://wa.me/2348169787869?text=${encodeURIComponent(whatsAppText)}`} target="_blank" rel="noopener noreferrer">
-                <MessageSquare className="mr-2 h-4 w-4" />
-                Contact Developer
-              </a>
-            </Button>
-          </CardFooter>
         </Card>
 
         <Card className="border-destructive">
@@ -568,31 +559,24 @@ export default function SettingsPage() {
             </p>
           </CardContent>
           <CardFooter className="border-t border-destructive/50 px-6 py-4">
-             <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive">
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete My Account
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This action cannot be undone. This will permanently delete your account and remove your data from our servers.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDeleteAccount} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                      Yes, delete my account
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+             <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                   <Button variant="destructive" disabled>
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete My Account
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>This feature is not yet implemented.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </CardFooter>
         </Card>
       </div>
     </>
   )
 }
+
+    
