@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { format } from "date-fns";
-import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 
 interface Video {
@@ -40,7 +40,7 @@ export default function VideosPage() {
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold md:text-3xl">Videos</h1>
          <Tooltip>
-            <TooltipTrigger>
+            <TooltipTrigger asChild>
                 <Button size="sm" className="h-8 gap-1" disabled>
                   <PlusCircle className="h-4 w-4" />
                   <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Upload Video</span>
@@ -92,15 +92,15 @@ export default function VideosPage() {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <Tooltip>
-                        <TooltipTrigger className="w-full"><DropdownMenuItem disabled><Pencil className="mr-2 h-4 w-4" />Rename</DropdownMenuItem></TooltipTrigger>
+                        <TooltipTrigger asChild><DropdownMenuItem disabled><Pencil className="mr-2 h-4 w-4" />Rename</DropdownMenuItem></TooltipTrigger>
                         <TooltipContent side="left"><p>Feature coming soon!</p></TooltipContent>
                     </Tooltip>
                      <Tooltip>
-                        <TooltipTrigger className="w-full"><DropdownMenuItem disabled><Download className="mr-2 h-4 w-4" />Download</DropdownMenuItem></TooltipTrigger>
+                        <TooltipTrigger asChild><DropdownMenuItem disabled><Download className="mr-2 h-4 w-4" />Download</DropdownMenuItem></TooltipTrigger>
                         <TooltipContent side="left"><p>Feature coming soon!</p></TooltipContent>
                     </Tooltip>
                      <Tooltip>
-                        <TooltipTrigger className="w-full"><DropdownMenuItem disabled className="text-destructive"><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem></TooltipTrigger>
+                        <TooltipTrigger asChild><DropdownMenuItem disabled className="text-destructive"><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem></TooltipTrigger>
                         <TooltipContent side="left"><p>Feature coming soon!</p></TooltipContent>
                     </Tooltip>
                   </DropdownMenuContent>
@@ -122,7 +122,7 @@ export default function VideosPage() {
               Start by uploading your first video.
             </p>
              <Tooltip>
-                <TooltipTrigger>
+                <TooltipTrigger asChild>
                     <Button className="mt-4" disabled>
                       <PlusCircle className="mr-2 h-4 w-4" />
                       Upload Video

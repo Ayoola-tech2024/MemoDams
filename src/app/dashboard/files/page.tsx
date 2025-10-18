@@ -68,7 +68,7 @@ export default function FilesPage() {
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold md:text-3xl">Files</h1>
          <Tooltip>
-            <TooltipTrigger>
+            <TooltipTrigger asChild>
                  <Button size="sm" className="h-8 gap-1" disabled>
                     <PlusCircle className="h-4 w-4" />
                     <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Upload File</span>
@@ -117,7 +117,7 @@ export default function FilesPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                            <Tooltip>
-                            <TooltipTrigger className="w-full">
+                            <TooltipTrigger asChild>
                                 <DropdownMenuItem disabled>
                                     <Download className="mr-2 h-4 w-4" />
                                     Download
@@ -126,7 +126,7 @@ export default function FilesPage() {
                              <TooltipContent side="left"><p>Feature coming soon!</p></TooltipContent>
                            </Tooltip>
                            <Tooltip>
-                            <TooltipTrigger className="w-full">
+                            <TooltipTrigger asChild>
                                 <DropdownMenuItem disabled>
                                     <Pencil className="mr-2 h-4 w-4" />
                                     Rename
@@ -135,7 +135,7 @@ export default function FilesPage() {
                              <TooltipContent side="left"><p>Feature coming soon!</p></TooltipContent>
                            </Tooltip>
                            <Tooltip>
-                            <TooltipTrigger className="w-full">
+                            <TooltipTrigger asChild>
                                 <DropdownMenuItem disabled className="text-destructive">
                                     <Trash2 className="mr-2 h-4 w-4" />
                                     Delete
@@ -165,7 +165,7 @@ export default function FilesPage() {
               Start by uploading your first file.
             </p>
              <Tooltip>
-                <TooltipTrigger>
+                <TooltipTrigger asChild>
                     <Button className="mt-4" disabled>
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Upload File

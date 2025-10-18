@@ -45,7 +45,7 @@ export default function PhotosPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold md:text-3xl">Photos</h1>
         <Tooltip>
-            <TooltipTrigger>
+            <TooltipTrigger asChild>
                 <Button size="sm" className="h-8 gap-1" disabled>
                     <PlusCircle className="h-4 w-4" />
                     <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Upload Photo</span>
@@ -87,15 +87,15 @@ export default function PhotosPage() {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <Tooltip>
-                        <TooltipTrigger className="w-full"><DropdownMenuItem disabled><Pencil className="mr-2 h-4 w-4" />Rename</DropdownMenuItem></TooltipTrigger>
+                        <TooltipTrigger asChild><DropdownMenuItem disabled><Pencil className="mr-2 h-4 w-4" />Rename</DropdownMenuItem></TooltipTrigger>
                         <TooltipContent side="left"><p>Feature coming soon!</p></TooltipContent>
                     </Tooltip>
                      <Tooltip>
-                        <TooltipTrigger className="w-full"><DropdownMenuItem disabled><Download className="mr-2 h-4 w-4" />Download</DropdownMenuItem></TooltipTrigger>
+                        <TooltipTrigger asChild><DropdownMenuItem disabled><Download className="mr-2 h-4 w-4" />Download</DropdownMenuItem></TooltipTrigger>
                         <TooltipContent side="left"><p>Feature coming soon!</p></TooltipContent>
                     </Tooltip>
                      <Tooltip>
-                        <TooltipTrigger className="w-full"><DropdownMenuItem disabled className="text-destructive"><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem></TooltipTrigger>
+                        <TooltipTrigger asChild><DropdownMenuItem disabled className="text-destructive"><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem></TooltipTrigger>
                         <TooltipContent side="left"><p>Feature coming soon!</p></TooltipContent>
                     </Tooltip>
                   </DropdownMenuContent>
@@ -115,7 +115,7 @@ export default function PhotosPage() {
               Start by uploading your first photo.
             </p>
              <Tooltip>
-                <TooltipTrigger>
+                <TooltipTrigger asChild>
                     <Button className="mt-4" disabled>
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Upload Photo
