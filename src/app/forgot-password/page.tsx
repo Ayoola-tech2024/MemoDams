@@ -1,3 +1,4 @@
+
 "use client"
 
 import Link from "next/link"
@@ -53,7 +54,7 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className="flex min-h-screen w-full items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-md mx-auto">
         <div className="mb-8 flex justify-center">
           <Logo />
         </div>
