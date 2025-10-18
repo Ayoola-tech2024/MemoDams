@@ -100,6 +100,7 @@ export default function FilesPage() {
 
   const renameForm = useForm<z.infer<typeof renameFileSchema>>({
     resolver: zodResolver(renameFileSchema),
+    defaultValues: { name: "" },
   });
 
   const handleDownload = (file: File) => {
@@ -160,7 +161,7 @@ export default function FilesPage() {
 
   return (
     <>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold md:text-3xl">Files</h1>
          <FileUploadDialog trigger={
             <Button size="sm" className="h-8 gap-1">
@@ -171,7 +172,7 @@ export default function FilesPage() {
       </div>
 
        {isLoading && (
-        <Card>
+        <Card className="mt-4">
           <Table>
             <TableHeader>
               <TableRow>
@@ -184,7 +185,7 @@ export default function FilesPage() {
             <TableBody>
               {Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell><Skeleton className="h-5 w-48" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-32 md:w-48" /></TableCell>
                   <TableCell className="hidden md:table-cell"><Skeleton className="h-5 w-20" /></TableCell>
                   <TableCell className="hidden md:table-cell"><Skeleton className="h-5 w-28" /></TableCell>
                   <TableCell><Skeleton className="h-8 w-8" /></TableCell>
@@ -196,7 +197,7 @@ export default function FilesPage() {
       )}
 
       {!isLoading && files && files.length > 0 && (
-         <Card>
+         <Card className="mt-4">
           <CardContent className="p-0">
             <Table>
               <TableHeader>
@@ -215,7 +216,7 @@ export default function FilesPage() {
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-3">
                         {getFileIcon(file.fileType)}
-                        <span>{file.name}</span>
+                        <span className="truncate">{file.name}</span>
                       </div>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">{formatBytes(file.fileSize)}</TableCell>
@@ -255,7 +256,7 @@ export default function FilesPage() {
       )}
       
       {!isLoading && (!files || files.length === 0) && (
-         <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm mt-4">
+         <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm mt-4 py-12">
           <div className="flex flex-col items-center gap-1 text-center">
             <FileArchive className="h-12 w-12 text-muted-foreground" />
             <h3 className="text-2xl font-bold tracking-tight">
@@ -295,7 +296,7 @@ export default function FilesPage() {
 
       {/* Rename File Dialog */}
       <Dialog open={!!fileToRename} onOpenChange={(open) => !open && setFileToRename(null)}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Rename File</DialogTitle>
           </DialogHeader>
@@ -316,3 +317,5 @@ export default function FilesPage() {
     </>
   )
 }
+
+    

@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, Loader2 } from 'lucide-react';
+import { Send, Loader2, ArrowLeft } from 'lucide-react';
 import { format } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -28,9 +28,10 @@ interface UserProfile {
 interface ChatWindowProps {
   conversationId: string;
   recipientId: string;
+  onBack: () => void;
 }
 
-export function ChatWindow({ conversationId, recipientId }: ChatWindowProps) {
+export function ChatWindow({ conversationId, recipientId, onBack }: ChatWindowProps) {
   const { user } = useUser();
   const firestore = useFirestore();
   const [newMessage, setNewMessage] = useState('');
@@ -83,6 +84,9 @@ export function ChatWindow({ conversationId, recipientId }: ChatWindowProps) {
     return (
         <div className="flex flex-col h-full">
              <div className="flex items-center gap-4 border-b p-4">
+                <Button variant="ghost" size="icon" className="md:hidden" onClick={onBack}>
+                    <ArrowLeft className="h-5 w-5" />
+                </Button>
                 <Skeleton className="h-10 w-10 rounded-full" />
                 <Skeleton className="h-6 w-32" />
             </div>
@@ -101,6 +105,9 @@ export function ChatWindow({ conversationId, recipientId }: ChatWindowProps) {
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-4 border-b p-4">
+         <Button variant="ghost" size="icon" className="md:hidden mr-2" onClick={onBack}>
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
         <Avatar>
           <AvatarImage src={recipientProfile?.profilePictureUrl} />
           <AvatarFallback>{recipientProfile?.name?.charAt(0) || 'U'}</AvatarFallback>

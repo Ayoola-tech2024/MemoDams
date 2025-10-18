@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { Button } from "@/components/ui/button"
@@ -14,7 +13,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useTheme } from "next-themes"
-import { Sun, Moon, Laptop, Trash2, Mail, MessageSquare, Eye, EyeOff, CalendarIcon, ShieldQuestion } from "lucide-react"
+import { Sun, Moon, Laptop, Trash2, Mail, MessageSquare, Eye, EyeOff, CalendarIcon, ShieldQuestion, Phone } from "lucide-react"
 import Link from "next/link";
 import {
   AlertDialog,
@@ -32,7 +31,7 @@ import { useUser, useAuth, useFirestore, useDoc, useMemoFirebase } from "@/fireb
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth"
+import { updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider, PhoneMultiFactorGenerator } from "firebase/auth"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -46,7 +45,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { SecurityQuestionDialog } from "./security-question-dialog"
-
+import { PhoneAuthDialog } from "./phone-auth-dialog";
 
 const profileSchema = z.object({
   fullName: z.string().min(1, { message: "Full name is required." }),
@@ -129,7 +128,6 @@ export default function SettingsPage() {
         const credential = EmailAuthProvider.credential(user.email, password);
         await reauthenticateWithCredential(user, credential);
 
-        // Once re-authenticated, proceed with updates
         await updateProfile(user, { displayName: values.fullName });
         
         const profileData: any = { 
@@ -200,6 +198,9 @@ export default function SettingsPage() {
   const whatsAppText = "Hello, I have a question about MemoDams.";
   const isPasswordProvider = user?.providerData.some((provider) => provider.providerId === "password");
 
+  const enrolledFactors = user ? PhoneMultiFactorGenerator.getAssertion(user.multiFactor) : [];
+  const isEnrolled = enrolledFactors.length > 0;
+
   if (!user || isLoadingProfile) return <div>Loading...</div>
 
   return (
@@ -207,7 +208,7 @@ export default function SettingsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold md:text-3xl">Settings</h1>
       </div>
-      <div className="grid gap-6">
+      <div className="grid gap-6 mt-4">
         <Card>
           <Form {...profileForm}>
             <form>
@@ -257,7 +258,7 @@ export default function SettingsPage() {
                       <FormLabel>Short Bio</FormLabel>
                       <FormControl>
                         <Textarea
-                          className="min-h-[120px]"
+                          className="min-h-[100px]"
                           placeholder="Tell us a little about yourself"
                           {...field}
                         />
@@ -375,14 +376,14 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent className="grid gap-6">
                  {isPasswordProvider && (
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                         <div>
                             <Label>Change Password</Label>
                             <p className="text-xs text-muted-foreground">It's a good practice to use a strong, unique password.</p>
                         </div>
                         <AlertDialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
                             <AlertDialogTrigger asChild>
-                                <Button type="button" variant="outline">Update Password</Button>
+                                <Button type="button" variant="outline" className="shrink-0">Update Password</Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                                 <Form {...passwordForm}>
@@ -477,7 +478,7 @@ export default function SettingsPage() {
                         </AlertDialog>
                     </div>
                 )}
-                 <div className="flex items-center justify-between">
+                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <div>
                         <Label>Security Question</Label>
                         <p className="text-xs text-muted-foreground">
@@ -488,12 +489,24 @@ export default function SettingsPage() {
                         user={user} 
                         userProfile={userProfile}
                         trigger={
-                            <Button variant="outline">
+                            <Button variant="outline" className="shrink-0">
                                 <ShieldQuestion className="mr-2 h-4 w-4" />
                                 {userProfile?.secretQuestion ? "Change Question" : "Set Question"}
                             </Button>
                         }
                     />
+                </div>
+                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div>
+                        <Label>Two-Factor Authentication</Label>
+                        <p className="text-xs text-muted-foreground">
+                             {isEnrolled
+                                ? `Enabled on number: ${enrolledFactors[0].phoneNumber}`
+                                : "Add an extra layer of security via SMS."
+                            }
+                        </p>
+                    </div>
+                     <PhoneAuthDialog user={user} isEnrolled={isEnrolled} />
                 </div>
             </CardContent>
         </Card>
@@ -542,7 +555,7 @@ export default function SettingsPage() {
               Your feedback is valuable in helping us improve MemoDams.
             </p>
           </CardContent>
-           <CardFooter className="border-t px-6 py-4 flex items-center gap-2">
+           <CardFooter className="border-t px-6 py-4 flex flex-wrap items-center gap-2">
             <Button asChild variant="outline">
               <a href={`mailto:damisileayoola@gmail.com?subject=${encodeURIComponent(emailSubject)}`}>
                 <Mail className="mr-2 h-4 w-4" />
@@ -596,6 +609,9 @@ export default function SettingsPage() {
           </CardFooter>
         </Card>
       </div>
+      <div id="recaptcha-container"></div>
     </>
   )
 }
+
+    

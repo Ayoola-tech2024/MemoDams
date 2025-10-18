@@ -60,7 +60,7 @@ export default function Home() {
             <div className="mb-8">
               <Logo showText={false} />
             </div>
-            <h1 className="text-4xl font-extrabold tracking-tight md:text-5xl">
+            <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl md:text-5xl">
               Your notes, memories, and files,
               <br />
               <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
@@ -71,7 +71,7 @@ export default function Home() {
               MemoDams provides a secure and beautiful space to capture your life's moments.
               Store everything from fleeting ideas to important documents with powerful cloud technology.
             </p>
-            <div className="mt-8 flex justify-center gap-4">
+            <div className="mt-8 flex flex-col sm:flex-row justify-center gap-4">
               <Button size="lg" asChild>
                 <Link href="/signup">
                   Get Started for Free <ArrowRight className="ml-2 h-5 w-5" />
@@ -146,3 +146,5 @@ export default function Home() {
     </div>
   );
 }
+
+    

@@ -2,7 +2,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { PlusCircle, PlayCircle, MoreVertical, Download, Trash2, Pencil, Video as VideoIcon, Loader2 } from "lucide-react"
 import Image from "next/image"
 import {
@@ -45,8 +45,8 @@ import { deleteFileAction } from "@/app/actions/delete-file";
 interface Video {
   id: string;
   name: string;
-  url: string; // URL to the video file
-  thumbnailUrl?: string; // URL to a thumbnail image
+  url: string; 
+  thumbnailUrl?: string;
   duration?: string;
   uploadDate: { seconds: number; nanoseconds: number; };
 }
@@ -90,6 +90,7 @@ export default function VideosPage() {
 
     const renameForm = useForm<z.infer<typeof renameFileSchema>>({
       resolver: zodResolver(renameFileSchema),
+      defaultValues: { name: "" },
     });
 
     const handleDownload = (file: Video) => {
@@ -148,7 +149,7 @@ export default function VideosPage() {
 
   return (
     <>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold md:text-3xl">Videos</h1>
         <FileUploadDialog
           fileTypes={videoMimeTypes}
@@ -162,13 +163,13 @@ export default function VideosPage() {
       </div>
 
        {isLoading && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mt-4">
           {Array.from({ length: 4 }).map((_, i) => <VideoSkeleton key={i} />)}
         </div>
       )}
 
       {!isLoading && videos && videos.length > 0 && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mt-4">
           {videos.map((video) => (
             <Card key={video.id} className="group relative overflow-hidden flex flex-col">
               <CardHeader className="p-0">
@@ -227,7 +228,7 @@ export default function VideosPage() {
       )}
 
       {!isLoading && (!videos || videos.length === 0) && (
-         <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm mt-4">
+         <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm mt-4 py-12">
           <div className="flex flex-col items-center gap-1 text-center">
             <VideoIcon className="h-12 w-12 text-muted-foreground" />
             <h3 className="text-2xl font-bold tracking-tight">
@@ -270,7 +271,7 @@ export default function VideosPage() {
 
       {/* Rename File Dialog */}
       <Dialog open={!!fileToRename} onOpenChange={(open) => !open && setFileToRename(null)}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Rename Video</DialogTitle>
           </DialogHeader>
@@ -291,3 +292,5 @@ export default function VideosPage() {
     </>
   )
 }
+
+    

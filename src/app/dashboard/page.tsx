@@ -9,23 +9,22 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { BookText, FileArchive, Image as ImageIcon, Video, ArrowRight, NotebookPen, PartyPopper } from "lucide-react"
+import { BookText, FileArchive, Image as ImageIcon, Video, ArrowRight, NotebookPen, PartyPopper, MessageSquare } from "lucide-react"
 import Link from 'next/link'
 import { useCollection, useDoc, useFirestore, useUser, useMemoFirebase } from "@/firebase"
 import { collection, query, where, orderBy, getCountFromServer, doc } from "firebase/firestore"
 import { useEffect, useState } from "react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { BirthdayGreeting } from "@/components/birthday-greeting"
-import { cn } from "@/lib/utils"
 
-interface OverviewItemProps {
-  title: string;
-  icon: React.ElementType;
-  count: number;
-  isLoading: boolean;
+type CountState = {
+  notes: number;
+  photos: number;
+  videos: number;
+  files: number;
 }
 
-function OverviewCard({ title, icon: Icon, count, isLoading }: OverviewItemProps) {
+function OverviewCard({ title, icon: Icon, count, isLoading }: { title: string; icon: React.ElementType; count: number; isLoading: boolean; }) {
   return (
     <Card className="h-full">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -43,19 +42,11 @@ function OverviewCard({ title, icon: Icon, count, isLoading }: OverviewItemProps
   )
 }
 
-
 function getGreeting() {
   const hour = new Date().getHours();
   if (hour < 12) return { text: "Good morning", emoji: "☀️" };
   if (hour < 18) return { text: "Good afternoon", emoji: "👋" };
   return { text: "Good evening", emoji: "🌙" };
-}
-
-type CountState = {
-  notes: number;
-  photos: number;
-  videos: number;
-  files: number;
 }
 
 function BirthdayBanner({ name }: { name?: string | null }) {
@@ -149,7 +140,6 @@ export default function DashboardPage() {
   const isBirthday = () => {
     if (!userProfile?.birthday) return false;
     const today = new Date();
-    // Firestore timestamp can be converted to Date
     const birthDate = new Date(userProfile.birthday);
     return today.getMonth() === birthDate.getMonth() && today.getDate() === birthDate.getDate();
   };
@@ -164,10 +154,10 @@ export default function DashboardPage() {
       
       <div className="flex items-center justify-between">
         <div className="grid gap-1">
-          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
+          <h1 className="text-xl font-semibold tracking-tight md:text-3xl">
             {greeting.text}, {userName || 'friend'}! {greeting.emoji}
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-sm text-muted-foreground md:text-base">
              Today is {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.
           </p>
         </div>
@@ -180,7 +170,7 @@ export default function DashboardPage() {
         ))}
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7 mt-6">
-        <Card className="col-span-4 animate-in fade-in slide-in-from-bottom-4" style={{ animationDelay: '500ms', animationFillMode: 'backwards' }}>
+        <Card className="col-span-full md:col-span-4 animate-in fade-in slide-in-from-bottom-4" style={{ animationDelay: '500ms', animationFillMode: 'backwards' }}>
           <CardHeader>
             <CardTitle>Recent Notes</CardTitle>
             <CardDescription>
@@ -228,7 +218,7 @@ export default function DashboardPage() {
             )}
           </CardContent>
         </Card>
-        <Card className="col-span-4 lg:col-span-3 animate-in fade-in slide-in-from-bottom-4" style={{ animationDelay: '600ms', animationFillMode: 'backwards' }}>
+        <Card className="col-span-full md:col-span-3 animate-in fade-in slide-in-from-bottom-4" style={{ animationDelay: '600ms', animationFillMode: 'backwards' }}>
           <CardHeader>
             <CardTitle>Recent Uploads</CardTitle>
             <CardDescription>

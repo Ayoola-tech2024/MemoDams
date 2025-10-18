@@ -34,16 +34,16 @@ export default function ProfilePage() {
 
   return (
     <>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold md:text-3xl">Profile</h1>
-         <Button asChild variant="outline">
+         <Button asChild variant="outline" size="sm">
           <Link href="/dashboard/settings">
             <Settings className="mr-2 h-4 w-4" />
-            Edit Profile & Settings
+            Edit Profile
           </Link>
         </Button>
       </div>
-      <div className="grid gap-6">
+      <div className="grid gap-6 mt-4">
         <Card>
           <CardHeader>
             <CardTitle>Your Information</CardTitle>
@@ -52,7 +52,7 @@ export default function ProfilePage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-6">
-            <div className="flex items-center gap-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
               <Avatar className="h-20 w-20">
                  {isLoading ? <Skeleton className="h-20 w-20 rounded-full" /> : (
                     <>
@@ -136,3 +136,5 @@ export default function ProfilePage() {
     </>
   )
 }
+
+    
