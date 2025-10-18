@@ -1,48 +1,171 @@
-
+/**
+ * @file Firebase Security Rules for MemoDams Application
+ *
+ * @corePhilosophy
+ * This ruleset enforces a strict user-ownership model.  Each user has full control over their own data (notes, tags, files) stored under their respective `/users/{userId}` path.  Public read access is provided for shared notes stored in the `/sharedNotes` collection.
+ *
+ * @dataStructure
+ * - `/users/{userId}`: User profile information.
+ * - `/users/{userId}/notes/{noteId}`: Notes created by a specific user.
+ * - `/sharedNotes/{noteId}`: Public, read-only notes.
+ * - `/users/{userId}/tags/{tagId}`: Tags created by a specific user.
+ * - `/users/{userId}/files/{fileId}`: Files uploaded by a specific user.
+ *
+ * @keySecurityDecisions
+ * - User listing is disallowed.
+ * - Public read access is granted for `/sharedNotes/{noteId}`.
+ * - The default security posture is strict owner-only access for all user-specific data.
+ *
+ * @denormalizationForAuthorization
+ *  None. This ruleset leverages path-based authorization.
+ */
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Users can read and write to their own user document.
-    // This allows them to update their profile, bio, secret question, etc.
+    /**
+     * @description Protects the `/users/{userId}` collection. Only the authenticated user can read/write their own profile.
+     * @path /users/{userId}
+     * @allow (create) - Authenticated user with UID 'user123' can create their profile document with id matching their uid.
+     * @deny (create) - Authenticated user with UID 'user123' cannot create a profile document with id 'user456'.
+     * @allow (get, update, delete) - Authenticated user with UID 'user123' can read/update/delete their own profile.
+     * @deny (get, update, delete) - Authenticated user with UID 'user123' cannot read/update/delete profile of 'user456'.
+     * @principle Enforces document ownership and prevents unauthorized access to user profiles.
+     */
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Helper function to check if the user is signed in
+      function isSignedIn() {
+        return request.auth != null;
+      }
 
-      // Users can manage their own notes, files, and tags.
-      match /notes/{noteId} {
-        allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+      // Helper function to check if the authenticated user is the owner of the document
+      function isOwner(userId) {
+        return request.auth.uid == userId;
       }
-      match /files/{fileId} {
-        allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+
+      // Helper function to check if the authenticated user is the owner of the document, and if the document exists
+      function isExistingOwner(userId) {
+        return isOwner(userId) && existsAfter(/databases/$(database)/documents/users/$(userId));
       }
-      match /tags/{tagId} {
-        allow read, write, delete: if request.auth != null && request.auth.uid == userId;
-      }
-      match /conversations/{conversationId} {
-        allow read, write, delete: if request.auth != null && request.auth.uid == userId;
-      }
+
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
     }
 
-    // Rules for root collections
-    
-    // Anyone can read a shared note, but no one can write to it from the client.
-    // Writes are handled by server-side logic (Admin SDK) which bypasses these rules.
+    /**
+     * @description Protects the `/users/{userId}/notes/{noteId}` collection. Only the authenticated user can manage their own notes.
+     * @path /users/{userId}/notes/{noteId}
+     * @allow (create) - Authenticated user with UID 'user123' can create a note under their user ID.
+     * @deny (create) - Authenticated user with UID 'user123' cannot create a note under user ID 'user456'.
+     * @allow (get, list, update, delete) - Authenticated user with UID 'user123' can read/list/update/delete their own notes.
+     * @deny (get, list, update, delete) - Authenticated user with UID 'user123' cannot read/list/update/delete notes of 'user456'.
+     * @principle Enforces document ownership and prevents unauthorized access to notes.
+     */
+    match /users/{userId}/notes/{noteId} {
+        // Helper function to check if the user is signed in
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      // Helper function to check if the authenticated user is the owner of the document
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      // Helper function to check if the authenticated user is the owner of the document, and if the document exists
+      function isExistingOwner(userId) {
+        return isOwner(userId) && existsAfter(/databases/$(database)/documents/users/$(userId)/notes/$(noteId));
+      }
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Allows public read access to the `/sharedNotes/{noteId}` collection. Only the server can write to these notes.
+     * @path /sharedNotes/{noteId}
+     * @allow (get, list) - Any user, authenticated or not, can read shared notes.
+     * @deny (create, update, delete) - No user can create, update, or delete shared notes via client; only server.
+     * @principle Enables public read access while restricting write access to the server.
+     */
     match /sharedNotes/{noteId} {
-      allow read: if true;
-      allow write: if false;
+       // Helper function to check if the user is signed in
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      allow get: if true;
+      allow list: if true;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
-    // Only authenticated users who are participants in a conversation can access it and its messages.
-    match /conversations/{conversationId} {
-      allow get: if request.auth != null && resource.data.participantIds.hasAny([request.auth.uid]);
-      allow list, create, update: if request.auth != null; // More specific rules might be needed depending on creation logic
+    /**
+     * @description Protects the `/users/{userId}/tags/{tagId}` collection. Only the authenticated user can manage their own tags.
+     * @path /users/{userId}/tags/{tagId}
+     * @allow (create) - Authenticated user with UID 'user123' can create a tag under their user ID.
+     * @deny (create) - Authenticated user with UID 'user123' cannot create a tag under user ID 'user456'.
+     * @allow (get, list, update, delete) - Authenticated user with UID 'user123' can read/list/update/delete their own tags.
+     * @deny (get, list, update, delete) - Authenticated user with UID 'user123' cannot read/list/update/delete tags of 'user456'.
+     * @principle Enforces document ownership and prevents unauthorized access to tags.
+     */
+    match /users/{userId}/tags/{tagId} {
+      // Helper function to check if the user is signed in
+      function isSignedIn() {
+        return request.auth != null;
+      }
 
-        match /messages/{messageId} {
-            allow read, create: if request.auth != null && get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds.hasAny([request.auth.uid]);
-            allow update, delete: if false; // Messages are immutable
-        }
+      // Helper function to check if the authenticated user is the owner of the document
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      // Helper function to check if the authenticated user is the owner of the document, and if the document exists
+      function isExistingOwner(userId) {
+        return isOwner(userId) && existsAfter(/databases/$(database)/documents/users/$(userId)/tags/$(tagId));
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
     }
 
+    /**
+     * @description Protects the `/users/{userId}/files/{fileId}` collection. Only the authenticated user can manage their own files.
+     * @path /users/{userId}/files/{fileId}
+     * @allow (create) - Authenticated user with UID 'user123' can create a file under their user ID.
+     * @deny (create) - Authenticated user with UID 'user123' cannot create a file under user ID 'user456'.
+     * @allow (get, list, update, delete) - Authenticated user with UID 'user123' can read/list/update/delete their own files.
+     * @deny (get, list, update, delete) - Authenticated user with UID 'user123' cannot read/list/update/delete files of 'user456'.
+     * @principle Enforces document ownership and prevents unauthorized access to files.
+     */
+    match /users/{userId}/files/{fileId} {
+       // Helper function to check if the user is signed in
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      // Helper function to check if the authenticated user is the owner of the document
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      // Helper function to check if the authenticated user is the owner of the document, and if the document exists
+      function isExistingOwner(userId) {
+        return isOwner(userId) && existsAfter(/databases/$(database)/documents/users/$(userId)/files/$(fileId));
+      }
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
   }
 }
