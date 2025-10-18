@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { UploadCloud } from "lucide-react";
-import { Tooltip, TooltipProvider, TooltipContent } from "@/components/ui/tooltip";
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 
 interface FileUploadDialogProps {
