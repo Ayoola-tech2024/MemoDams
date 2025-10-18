@@ -36,7 +36,7 @@ import { Logo } from '@/components/logo';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { useAuth, useUser } from '@/firebase';
 import { useRouter, usePathname } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { signOut } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -50,13 +50,14 @@ const navItems = [
   { href: '/dashboard/files', icon: FileArchive, label: 'Files' },
 ];
 
-function NavLink({ href, icon: Icon, label }: { href:string; icon: React.ElementType; label: string }) {
+function NavLink({ href, icon: Icon, label, onClick }: { href:string; icon: React.ElementType; label: string, onClick?: () => void }) {
   const pathname = usePathname();
   const isActive = pathname === href;
 
   return (
     <Link
       href={href}
+      onClick={onClick}
       className={cn(
         "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary",
         isActive && "bg-muted text-primary font-semibold"
@@ -77,6 +78,7 @@ export default function DashboardLayout({
   const auth = useAuth();
   const router = useRouter();
   const { toast } = useToast();
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   useEffect(() => {
     if (isUserLoading) return;
@@ -139,7 +141,7 @@ export default function DashboardLayout({
       </div>
       <div className="flex flex-col">
         <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-4 lg:h-[60px] lg:px-6">
-          <Sheet>
+          <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
             <SheetTrigger asChild>
               <Button
                 variant="outline"
@@ -158,7 +160,7 @@ export default function DashboardLayout({
               </SheetHeader>
               <nav className="grid gap-2 text-lg font-medium mt-4">
                 {navItems.map((item) => (
-                  <NavLink key={item.href} {...item} />
+                  <NavLink key={item.href} {...item} onClick={() => setIsSheetOpen(false)} />
                 ))}
               </nav>
             </SheetContent>
