@@ -110,7 +110,7 @@ export default function Home() {
           </div>
         </section>
 
-         <section className="py-20 md:py-28">
+         <section className="py-16 md:py-20">
           <div className="container text-center">
              <h2 className="text-3xl font-bold md:text-4xl">Ready to Secure Your Digital Life?</h2>
              <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
@@ -146,5 +146,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
