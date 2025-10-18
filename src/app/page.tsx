@@ -84,7 +84,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="features" className="bg-muted/30 py-20 md:py-28">
+        <section id="features" className="bg-muted/30 py-20 md:py-28 px-4">
           <div className="container">
             <div className="mx-auto mb-16 max-w-2xl text-center">
               <h2 className="text-3xl font-bold md:text-4xl">Everything You Need, All in One App</h2>
@@ -110,7 +110,7 @@ export default function Home() {
           </div>
         </section>
 
-         <section className="py-16 md:py-20">
+         <section className="py-16">
           <div className="container text-center">
              <h2 className="text-3xl font-bold md:text-4xl">Ready to Secure Your Digital Life?</h2>
              <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
