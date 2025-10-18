@@ -3,7 +3,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { PlusCircle, PlayCircle, MoreVertical, Download, Trash2, Pencil, Video as VideoIcon, Loader2 } from "lucide-react"
+import { PlusCircle, PlayCircle, MoreVertical, Download, Trash2, Pencil, Video as VideoIcon } from "lucide-react"
 import Image from "next/image"
 import {
   DropdownMenu,
@@ -11,162 +11,46 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { useCollection, useFirestore, useUser, useMemoFirebase } from "@/firebase";
-import { collection, query, where, orderBy, doc, updateDoc } from "firebase/firestore";
-import { Skeleton } from "@/components/ui/skeleton";
-import { FileUploadDialog } from "@/components/file-upload-dialog";
 import { format } from "date-fns";
-import { useState } from "react";
-import { useToast } from "@/hooks/use-toast";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { deleteFileAction } from "@/app/actions/delete-file";
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 
 interface Video {
   id: string;
   name: string;
-  url: string; 
-  thumbnailUrl?: string;
-  duration?: string;
-  uploadDate: { seconds: number; nanoseconds: number; };
+  thumbnailUrl: string;
+  duration: string;
+  uploadDate: Date;
 }
 
-function VideoSkeleton() {
-  return (
-    <Card className="overflow-hidden">
-      <Skeleton className="aspect-video w-full" />
-      <CardContent className="p-4">
-        <Skeleton className="h-5 w-3/4" />
-        <Skeleton className="h-4 w-1/2 mt-2" />
-      </CardContent>
-    </Card>
-  );
-}
+const placeholderVideos: Video[] = [
+    { id: '1', name: 'Coastal Drone Footage', thumbnailUrl: 'https://images.unsplash.com/photo-1507525428034-b723a9ce6890?q=80&w=2070&auto=format&fit=crop', duration: '2:45', uploadDate: new Date('2023-10-28T10:30:00Z') },
+    { id: '2', name: 'Forest Time-lapse', thumbnailUrl: 'https://images.unsplash.com/photo-1448375240586-882707db888b?q=80&w=2070&auto=format&fit=crop', duration: '5:12', uploadDate: new Date('2023-10-27T11:00:00Z') },
+    { id: '3', name: 'City Traffic Flow', thumbnailUrl: 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?q=80&w=2070&auto=format&fit=crop', duration: '1:30', uploadDate: new Date('2023-10-26T18:00:00Z') },
+    { id: '4', name: 'Galaxy Animation', thumbnailUrl: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop', duration: '10:00', uploadDate: new Date('2023-10-25T09:15:00Z') },
+];
 
-const videoMimeTypes = ["video/mp4", "video/webm", "video/ogg"];
-
-const renameFileSchema = z.object({
-  name: z.string().min(1, "File name cannot be empty"),
-});
 
 export default function VideosPage() {
-    const { user } = useUser();
-    const firestore = useFirestore();
-    const { toast } = useToast();
-    const [fileToDelete, setFileToDelete] = useState<Video | null>(null);
-    const [fileToRename, setFileToRename] = useState<Video | null>(null);
-    const [isDeleting, setIsDeleting] = useState(false);
-
-    const videosQuery = useMemoFirebase(() => {
-        if (!user || !firestore) return null;
-        return query(
-            collection(firestore, 'users', user.uid, 'files'),
-            where("fileType", "in", videoMimeTypes),
-            orderBy("uploadDate", "desc")
-        );
-    }, [user, firestore]);
-
-    const { data: videos, isLoading } = useCollection<Video>(videosQuery);
-
-    const renameForm = useForm<z.infer<typeof renameFileSchema>>({
-      resolver: zodResolver(renameFileSchema),
-      defaultValues: { name: "" },
-    });
-
-    const handleDownload = (file: Video) => {
-      try {
-        const link = document.createElement('a');
-        link.href = file.url;
-        link.target = '_blank';
-        link.download = file.name;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast({ title: "Downloading", description: `"${file.name}" has started downloading.` });
-      } catch (error) {
-        toast({ variant: "destructive", title: "Download Failed", description: "Could not download the file." });
-      }
-    };
-
-    const handleDelete = async () => {
-      if (!fileToDelete || !user) return;
-      setIsDeleting(true);
-      try {
-        const filePath = decodeURIComponent(new URL(fileToDelete.url).pathname.split('/o/')[1]).split('?')[0];
-        const result = await deleteFileAction(user.uid, fileToDelete.id, filePath);
-  
-        if (result.success) {
-          toast({ title: "Video Deleted", description: `"${fileToDelete.name}" has been deleted.` });
-        } else {
-          throw new Error(result.message);
-        }
-      } catch (error: any) {
-        toast({ variant: "destructive", title: "Deletion Failed", description: error.message || "An unexpected error occurred." });
-      } finally {
-        setIsDeleting(false);
-        setFileToDelete(null);
-      }
-    };
-    
-    const handleRenameSubmit = async (values: z.infer<typeof renameFileSchema>) => {
-      if (!fileToRename || !user || !firestore) return;
-      
-      const fileRef = doc(firestore, 'users', user.uid, 'files', fileToRename.id);
-      try {
-        await updateDoc(fileRef, { name: values.name });
-        toast({ title: "Video Renamed", description: `Successfully renamed to "${values.name}".`});
-        setFileToRename(null);
-        renameForm.reset();
-      } catch (error: any) {
-        toast({ variant: "destructive", title: "Rename Failed", description: error.message });
-      }
-    };
-    
-    const openRenameDialog = (video: Video) => {
-      setFileToRename(video);
-      renameForm.setValue("name", video.name);
-    };
+    const videos = placeholderVideos;
+    const isLoading = false;
 
   return (
-    <>
+    <TooltipProvider>
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold md:text-3xl">Videos</h1>
-        <FileUploadDialog
-          fileTypes={videoMimeTypes}
-          trigger={
-            <Button size="sm" className="h-8 gap-1">
-              <PlusCircle className="h-4 w-4" />
-              <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Upload Video</span>
-            </Button>
-          }
-        />
+         <Tooltip>
+            <TooltipTrigger>
+                <Button size="sm" className="h-8 gap-1" disabled>
+                  <PlusCircle className="h-4 w-4" />
+                  <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Upload Video</span>
+                </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+                <p>Video upload feature coming soon!</p>
+            </TooltipContent>
+         </Tooltip>
       </div>
-
-       {isLoading && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mt-4">
-          {Array.from({ length: 4 }).map((_, i) => <VideoSkeleton key={i} />)}
-        </div>
-      )}
 
       {!isLoading && videos && videos.length > 0 && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mt-4">
@@ -174,9 +58,9 @@ export default function VideosPage() {
             <Card key={video.id} className="group relative overflow-hidden flex flex-col">
               <CardHeader className="p-0">
                 <div className="relative">
-                   <a href={video.url} target="_blank" rel="noopener noreferrer">
+                   <div className="cursor-pointer">
                     <Image
-                      src={video.thumbnailUrl || `https://picsum.photos/seed/${video.id}/400/225`}
+                      src={video.thumbnailUrl}
                       alt={video.name}
                       width={400}
                       height={225}
@@ -185,7 +69,7 @@ export default function VideosPage() {
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                       <PlayCircle className="h-16 w-16 text-white/80" />
                     </div>
-                  </a>
+                  </div>
                   {video.duration && (
                     <div className="absolute bottom-2 right-2 bg-black/50 text-white text-xs px-1.5 py-0.5 rounded-sm">
                       {video.duration}
@@ -196,29 +80,29 @@ export default function VideosPage() {
               <CardContent className="p-4 flex-grow">
                 <h3 className="font-semibold truncate">{video.name}</h3>
                  <p className="text-xs text-muted-foreground">
-                    {video.uploadDate ? format(new Date(video.uploadDate.seconds * 1000), "PP") : 'No date'}
+                    {video.uploadDate ? format(video.uploadDate, "PP") : 'No date'}
                 </p>
               </CardContent>
               <div className="absolute top-2 right-2 opacity-0 transition-opacity group-hover:opacity-100">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="secondary" size="icon" className="h-8 w-8">
+                    <Button variant="secondary" size="icon" className="h-8 w-8 bg-black/50 hover:bg-black/70 border-none text-white">
                       <MoreVertical className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => openRenameDialog(video)}>
-                      <Pencil className="mr-2 h-4 w-4" />
-                      Rename
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleDownload(video)}>
-                      <Download className="mr-2 h-4 w-4" />
-                      Download
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setFileToDelete(video)} className="text-destructive">
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Delete
-                    </DropdownMenuItem>
+                    <Tooltip>
+                        <TooltipTrigger className="w-full"><DropdownMenuItem disabled><Pencil className="mr-2 h-4 w-4" />Rename</DropdownMenuItem></TooltipTrigger>
+                        <TooltipContent side="left"><p>Feature coming soon!</p></TooltipContent>
+                    </Tooltip>
+                     <Tooltip>
+                        <TooltipTrigger className="w-full"><DropdownMenuItem disabled><Download className="mr-2 h-4 w-4" />Download</DropdownMenuItem></TooltipTrigger>
+                        <TooltipContent side="left"><p>Feature coming soon!</p></TooltipContent>
+                    </Tooltip>
+                     <Tooltip>
+                        <TooltipTrigger className="w-full"><DropdownMenuItem disabled className="text-destructive"><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem></TooltipTrigger>
+                        <TooltipContent side="left"><p>Feature coming soon!</p></TooltipContent>
+                    </Tooltip>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -237,60 +121,18 @@ export default function VideosPage() {
             <p className="text-sm text-muted-foreground">
               Start by uploading your first video.
             </p>
-            <FileUploadDialog
-              fileTypes={videoMimeTypes}
-              trigger={
-                <Button className="mt-4">
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Upload Video
-                </Button>
-              }
-            />
+             <Tooltip>
+                <TooltipTrigger>
+                    <Button className="mt-4" disabled>
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      Upload Video
+                    </Button>
+                </TooltipTrigger>
+                 <TooltipContent><p>Video upload feature coming soon!</p></TooltipContent>
+             </Tooltip>
           </div>
         </div>
       )}
-
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!fileToDelete} onOpenChange={(open) => !open && setFileToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete "{fileToDelete?.name}".
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90">
-              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isDeleting ? 'Deleting...' : 'Yes, delete it'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Rename File Dialog */}
-      <Dialog open={!!fileToRename} onOpenChange={(open) => !open && setFileToRename(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Rename Video</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={renameForm.handleSubmit(handleRenameSubmit)} className="space-y-4">
-            <Input {...renameForm.register("name")} />
-            {renameForm.formState.errors.name && (
-              <p className="text-sm text-destructive">{renameForm.formState.errors.name.message}</p>
-            )}
-            <DialogFooter>
-              <Button type="button" variant="ghost" onClick={() => setFileToRename(null)}>Cancel</Button>
-              <Button type="submit" disabled={renameForm.formState.isSubmitting}>
-                {renameForm.formState.isSubmitting ? "Saving..." : "Save"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </>
+    </TooltipProvider>
   )
 }
-
-    

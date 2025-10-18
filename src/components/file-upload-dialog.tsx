@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, type ReactElement, useTransition } from "react";
+import { useState, type ReactElement } from "react";
 import {
   Dialog,
   DialogContent,
@@ -13,181 +13,65 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
-import { useUser, useFirestore, FirestorePermissionError, errorEmitter } from "@/firebase";
-import { getStorage, ref, uploadBytesResumable, getDownloadURL, type UploadTask } from "firebase/storage";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
-import { UploadCloud, File as FileIcon, X } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { UploadCloud } from "lucide-react";
+import { Tooltip, TooltipProvider, TooltipContent } from "@/components/ui/tooltip";
+
 
 interface FileUploadDialogProps {
   trigger: ReactElement;
-  fileTypes?: string[]; // e.g., ["image/png", "image/jpeg"]
+  fileTypes?: string[]; 
   onUploadComplete?: (downloadURL: string) => void;
 }
 
-export function FileUploadDialog({ trigger, fileTypes, onUploadComplete }: FileUploadDialogProps) {
+export function FileUploadDialog({ trigger, fileTypes }: FileUploadDialogProps) {
   const [open, setOpen] = useState(false);
-  const [file, setFile] = useState<File | null>(null);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadTask, setUploadTask] = useState<UploadTask | null>(null);
-  const { user } = useUser();
-  const firestore = useFirestore();
   const { toast } = useToast();
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (files && files[0]) {
-      setFile(files[0]);
-    }
-  };
-
-  const handleUpload = async () => {
-    if (!file || !user || !firestore) {
-      toast({
-        variant: "destructive",
-        title: "Upload failed",
-        description: "No file selected or user not logged in.",
-      });
-      return;
-    }
-
-    setIsUploading(true);
-    setUploadProgress(0);
-
-    const storage = getStorage();
-    const filePath = `users/${user.uid}/files/${Date.now()}_${file.name}`;
-    const storageRef = ref(storage, filePath);
-    const task = uploadBytesResumable(storageRef, file);
-    setUploadTask(task);
-
-    task.on(
-      "state_changed",
-      (snapshot) => {
-        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        setUploadProgress(progress);
-      },
-      (error) => {
-        setIsUploading(false);
-        setUploadTask(null);
-
-        if (error.code === 'storage/canceled') {
-          toast({
-            title: "Upload Canceled",
-            description: "Your file upload has been canceled.",
-          });
-          handleClose();
-        } else {
-            console.error("Upload failed:", error);
-            const permissionError = new FirestorePermissionError({
-                path: filePath,
-                operation: 'write', 
-            });
-            errorEmitter.emit('permission-error', permissionError);
-        }
-      },
-      () => {
-        getDownloadURL(task.snapshot.ref).then(downloadURL => {
-            if (onUploadComplete) {
-                onUploadComplete(downloadURL);
-                handleClose();
-                return;
-            }
-
-            const fileData = {
-                name: file.name,
-                url: downloadURL,
-                fileType: file.type,
-                fileSize: file.size,
-                uploadDate: serverTimestamp(),
-                userId: user.uid,
-            };
-
-            addDoc(collection(firestore, "users", user.uid, "files"), fileData)
-                .then(() => {
-                    toast({
-                        title: "Upload Successful",
-                        description: `${file.name} has been uploaded.`,
-                    });
-                    startTransition(() => {
-                        router.refresh();
-                    });
-                    handleClose();
-                })
-                .catch((firestoreError: any) => {
-                    console.error("Firestore write failed:", firestoreError);
-                    const permissionError = new FirestorePermissionError({
-                        path: `users/${user.uid}/files`,
-                        operation: 'create',
-                        requestResourceData: fileData
-                    });
-                    errorEmitter.emit('permission-error', permissionError);
-                    setIsUploading(false);
-                    setUploadTask(null);
-                });
-        }).catch(err => {
-             console.error("Could not get download URL", err);
-             setIsUploading(false);
-        })
-      }
-    );
-  };
-  
-  const handleCancelUpload = () => {
-    if (uploadTask) {
-      uploadTask.cancel();
-    } else {
-       handleClose();
-    }
-  };
-
-  const handleClose = () => {
-    setOpen(false);
-    setTimeout(() => {
-        setFile(null);
-        setUploadProgress(0);
-        setIsUploading(false);
-        setUploadTask(null);
-    }, 300);
-  };
-  
-  const onDialogOpenChange = (isOpen: boolean) => {
-    if (isUploading) return;
-    setOpen(isOpen);
-    if (!isOpen) {
-        handleClose();
-    }
+  const handleDisabledUpload = () => {
+    toast({
+        variant: "default",
+        title: "Feature Coming Soon",
+        description: "File uploading is not yet enabled. Please check back later!",
+    });
   }
 
   return (
-    <Dialog open={open} onOpenChange={onDialogOpenChange}>
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent onInteractOutside={(e) => { if (isUploading) e.preventDefault(); }}>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <TooltipProvider>
+        <Tooltip>
+            <TooltipTrigger asChild>
+                {trigger}
+            </TooltipTrigger>
+            <TooltipContent>
+                <p>Feature coming soon!</p>
+            </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      {/* 
+        The dialog content is kept for UI structure, but the functionality is disabled.
+        This can be re-enabled later.
+      */}
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Upload a File</DialogTitle>
           <DialogDescription>
-            Select a file from your device to upload.
+            Select a file from your device to upload. (This feature is currently disabled).
           </DialogDescription>
         </DialogHeader>
 
         <div className="py-4">
-          {!file && !isUploading ? (
             <div className="relative flex justify-center w-full h-48 border-2 border-dashed rounded-lg border-muted-foreground/50">
               <Input
                 id="file-upload"
                 type="file"
-                className="absolute inset-0 z-10 w-full h-full opacity-0 cursor-pointer"
-                onChange={handleFileChange}
+                className="absolute inset-0 z-10 w-full h-full opacity-0 cursor-not-allowed"
                 accept={fileTypes?.join(",")}
-                disabled={isUploading}
+                disabled
               />
               <label
                 htmlFor="file-upload"
-                className="flex flex-col items-center justify-center w-full h-full text-center cursor-pointer"
+                className="flex flex-col items-center justify-center w-full h-full text-center cursor-not-allowed"
               >
                 <UploadCloud className="w-10 h-10 text-muted-foreground" />
                 <p className="mt-2 text-sm text-muted-foreground">
@@ -196,41 +80,14 @@ export function FileUploadDialog({ trigger, fileTypes, onUploadComplete }: FileU
                 {fileTypes && <p className="text-xs text-muted-foreground">Allowed types: {fileTypes.join(", ")}</p>}
               </label>
             </div>
-          ) : file && (
-            <div className="p-4 border rounded-lg">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <FileIcon className="h-6 w-6 text-muted-foreground" />
-                        <div>
-                            <p className="text-sm font-medium truncate max-w-xs">{file.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                                {(file.size / 1024 / 1024).toFixed(2)} MB
-                            </p>
-                        </div>
-                    </div>
-                    {!isUploading && (
-                        <Button variant="ghost" size="icon" onClick={() => setFile(null)}>
-                            <X className="h-4 w-4" />
-                        </Button>
-                    )}
-                </div>
-
-                {isUploading && (
-                  <div className="mt-4">
-                    <Progress value={uploadProgress} className="w-full" />
-                    <p className="text-xs text-center text-muted-foreground mt-2">{Math.round(uploadProgress)}% uploaded</p>
-                  </div>
-                )}
-            </div>
-          )}
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleCancelUpload}>
-            {isUploading ? "Cancel Upload" : "Cancel"}
+          <Button variant="outline" onClick={() => setOpen(false)}>
+            Cancel
           </Button>
-          <Button onClick={handleUpload} disabled={!file || isUploading || isPending}>
-            {isUploading ? "Uploading..." : "Upload"}
+          <Button onClick={handleDisabledUpload} disabled>
+            Upload
           </Button>
         </DialogFooter>
       </DialogContent>
