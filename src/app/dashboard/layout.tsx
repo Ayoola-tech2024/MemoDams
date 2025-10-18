@@ -36,10 +36,12 @@ import Link from 'next/link';
 import { Logo } from '@/components/logo';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { useAuth, useUser } from '@/firebase';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 import { signOut } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+
 
 const navItems = [
   { href: '/dashboard', icon: Home, label: 'Dashboard' },
@@ -51,10 +53,16 @@ const navItems = [
 ];
 
 function NavLink({ href, icon: Icon, label }: { href:string; icon: React.ElementType; label: string }) {
+  const pathname = usePathname();
+  const isActive = pathname === href;
+
   return (
     <Link
       href={href}
-      className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
+      className={cn(
+        "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary",
+        isActive && "bg-muted text-primary font-semibold"
+      )}
     >
       <Icon className="h-4 w-4" />
       {label}
@@ -100,7 +108,7 @@ export default function DashboardLayout({
   const getInitials = (name: string | null | undefined) => {
     if (!name) return 'U';
     const names = name.split(' ');
-    if (names.length > 1) {
+    if (names.length > 1 && names[1]) {
       return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
     }
     return name.substring(0, 2).toUpperCase();
@@ -210,3 +218,5 @@ export default function DashboardLayout({
     </div>
   );
 }
+
+    
