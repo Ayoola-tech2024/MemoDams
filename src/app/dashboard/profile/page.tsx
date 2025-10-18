@@ -34,11 +34,11 @@ export default function ProfilePage() {
   
   const getInitials = (name: string | null | undefined) => {
     if (!name) return 'U';
-    const names = name.split(' ');
+    const names = name.split(' ').filter(Boolean);
     if (names.length > 1) {
       return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
     }
-    return name.substring(0, 2).toUpperCase();
+    return names[0]?.substring(0, 2).toUpperCase() || 'U';
   };
 
   return (

@@ -32,7 +32,7 @@ export default function Home() {
   return (
     <div className="flex min-h-screen flex-col text-center">
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex h-14 max-w-screen-2xl items-center justify-between">
+        <div className="flex h-14 items-center justify-between">
           <Logo />
           <div className="flex items-center gap-2">
             <Button variant="ghost" asChild>
@@ -84,7 +84,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="features" className="bg-muted/30 py-20 md:py-28">
+        <section id="features" className="bg-muted/30 py-20 md:py-28 px-4 sm:px-6 lg:px-8">
           <div>
             <div className="mx-auto mb-16 max-w-2xl text-center">
               <h2 className="text-3xl font-bold md:text-4xl">Everything You Need, All in One App</h2>

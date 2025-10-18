@@ -107,11 +107,11 @@ export default function DashboardLayout({
   
   const getInitials = (name: string | null | undefined) => {
     if (!name) return 'U';
-    const names = name.split(' ');
-    if (names.length > 1 && names[1]) {
+    const names = name.split(' ').filter(Boolean);
+    if (names.length > 1) {
       return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
     }
-    return name.substring(0, 2).toUpperCase();
+    return names[0]?.substring(0, 2).toUpperCase() || 'U';
   };
 
   if (isUserLoading || !user) {
@@ -211,8 +211,10 @@ export default function DashboardLayout({
             </DropdownMenuContent>
           </DropdownMenu>
         </header>
-        <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-background">
-          {children}
+        <main className="flex flex-1 flex-col bg-background">
+          <div className="flex-1 p-4 sm:p-6 lg:p-8">
+            {children}
+          </div>
         </main>
       </div>
     </div>
