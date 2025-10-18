@@ -96,6 +96,15 @@ export default function DashboardLayout({
       });
     }
   };
+  
+  const getInitials = (name: string | null | undefined) => {
+    if (!name) return 'U';
+    const names = name.split(' ');
+    if (names.length > 1) {
+      return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
 
   if (isUserLoading || !user) {
     return (
@@ -165,8 +174,8 @@ export default function DashboardLayout({
             <DropdownMenuTrigger asChild>
               <Button variant="secondary" size="icon" className="rounded-full">
                 <Avatar>
-                  <AvatarImage src={user.photoURL || `https://picsum.photos/seed/${user.uid}/40/40`} />
-                  <AvatarFallback>{user.displayName?.charAt(0) || 'U'}</AvatarFallback>
+                  <AvatarImage src={user.photoURL || undefined} />
+                  <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
                 </Avatar>
                 <span className="sr-only">Toggle user menu</span>
               </Button>
@@ -201,5 +210,3 @@ export default function DashboardLayout({
     </div>
   );
 }
-
-    

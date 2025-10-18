@@ -14,7 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useFirestore } from "@/firebase";
-import { collection, query, where, getDocs, addDoc, serverTimestamp, writeBatch, doc } from "firebase/firestore";
+import { collection, query, where, getDocs, addDoc, serverTimestamp, writeBatch, doc, getDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -32,6 +32,11 @@ interface StartConversationDialogProps {
   trigger: ReactElement;
   currentUserId: string;
   onConversationCreated: (conversationId: string, recipientId: string) => void;
+}
+
+// Generates a consistent, ordered ID for a conversation between two users
+const getConversationId = (userId1: string, userId2: string) => {
+    return [userId1, userId2].sort().join('_');
 }
 
 export function StartConversationDialog({ trigger, currentUserId, onConversationCreated }: StartConversationDialogProps) {
@@ -72,27 +77,21 @@ export function StartConversationDialog({ trigger, currentUserId, onConversation
   const handleStartConversation = async (recipient: UserSearchResult) => {
     if (!firestore) return;
 
+    const conversationId = getConversationId(currentUserId, recipient.id);
+    const conversationRef = doc(firestore, 'conversations', conversationId);
+
     try {
-        // Check if a conversation already exists
-        // This query is inefficient but works for small scale. 
-        // For larger scale, you'd create a composite ID for the conversation document.
-        const conversationsRef = collection(firestore, 'conversations');
-        const q1 = query(conversationsRef, where('participantIds', '==', [currentUserId, recipient.id]));
-        const q2 = query(conversationsRef, where('participantIds', '==', [recipient.id, currentUserId]));
+        const conversationSnap = await getDoc(conversationRef);
 
-        const [snapshot1, snapshot2] = await Promise.all([getDocs(q1), getDocs(q2)]);
-        
-        const existingConversationDoc = snapshot1.docs[0] || snapshot2.docs[0];
-
-        if (existingConversationDoc) {
-            onConversationCreated(existingConversationDoc.id, recipient.id);
+        if (conversationSnap.exists()) {
+            // Conversation already exists, just open it
+            onConversationCreated(conversationId, recipient.id);
             setOpen(false);
             return;
         }
 
-        // If not, create a new one
+        // If not, create a new one using a batch write
         const batch = writeBatch(firestore);
-        const newConversationRef = doc(collection(firestore, 'conversations'));
         
         const conversationData = {
             participantIds: [currentUserId, recipient.id],
@@ -100,19 +99,19 @@ export function StartConversationDialog({ trigger, currentUserId, onConversation
             updatedAt: serverTimestamp(),
             lastMessage: null,
         };
-        batch.set(newConversationRef, conversationData);
+        batch.set(conversationRef, conversationData);
 
         // Add conversation reference to both users' subcollections
-        const currentUserConversationsRef = doc(firestore, 'users', currentUserId, 'conversations', newConversationRef.id);
-        const recipientConversationsRef = doc(firestore, 'users', recipient.id, 'conversations', newConversationRef.id);
+        const currentUserConversationsRef = doc(firestore, 'users', currentUserId, 'conversations', conversationId);
+        const recipientConversationsRef = doc(firestore, 'users', recipient.id, 'conversations', conversationId);
 
-        batch.set(currentUserConversationsRef, { conversationId: newConversationRef.id });
-        batch.set(recipientConversationsRef, { conversationId: newConversationRef.id });
+        batch.set(currentUserConversationsRef, { conversationId: conversationId });
+        batch.set(recipientConversationsRef, { conversationId: conversationId });
 
         await batch.commit();
 
         toast({ title: "Conversation Started", description: `You can now message ${recipient.name}.` });
-        onConversationCreated(newConversationRef.id, recipient.id);
+        onConversationCreated(conversationId, recipient.id);
         setOpen(false);
     } catch (error) {
         console.error("Error starting conversation: ", error);

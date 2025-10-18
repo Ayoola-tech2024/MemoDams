@@ -31,6 +31,15 @@ export default function ProfilePage() {
   const { data: userProfile, isLoading: isLoadingProfile } = useDoc(userProfileRef);
 
   const isLoading = isUserLoading || isLoadingProfile;
+  
+  const getInitials = (name: string | null | undefined) => {
+    if (!name) return 'U';
+    const names = name.split(' ');
+    if (names.length > 1) {
+      return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
 
   return (
     <>
@@ -56,8 +65,8 @@ export default function ProfilePage() {
               <Avatar className="h-20 w-20">
                  {isLoading ? <Skeleton className="h-20 w-20 rounded-full" /> : (
                     <>
-                        <AvatarImage src={user?.photoURL || `https://picsum.photos/seed/${user?.uid}/80/80`} />
-                        <AvatarFallback>{user?.displayName?.charAt(0) || 'U'}</AvatarFallback>
+                        <AvatarImage src={user?.photoURL || undefined} />
+                        <AvatarFallback>{getInitials(user?.displayName)}</AvatarFallback>
                     </>
                  )}
               </Avatar>
@@ -136,5 +145,3 @@ export default function ProfilePage() {
     </>
   )
 }
-
-    

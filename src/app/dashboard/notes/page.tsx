@@ -4,9 +4,8 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { PlusCircle, ListFilter, NotebookPen, Globe } from "lucide-react"
+import { PlusCircle, NotebookPen, Globe } from "lucide-react"
 import Link from 'next/link'
-import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useCollection, useFirestore, useUser, useMemoFirebase } from "@/firebase";
 import { collection, query, orderBy } from "firebase/firestore";
 import { format } from "date-fns";
@@ -63,23 +62,6 @@ export default function NotesPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold md:text-3xl">Notes</h1>
         <div className="flex items-center gap-2">
-           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 gap-1">
-                <ListFilter className="h-3.5 w-3.5" />
-                <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                  Filter
-                </span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Filter by tag</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuCheckboxItem checked>Work</DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem>Personal</DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem>Idea</DropdownMenuCheckboxItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
           <CreateNoteButton />
         </div>
       </div>
