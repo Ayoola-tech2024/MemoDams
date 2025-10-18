@@ -13,7 +13,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useTheme } from "next-themes"
-import { Sun, Moon, Laptop, Trash2, Mail, MessageSquare, Eye, EyeOff, CalendarIcon, ShieldQuestion, Phone } from "lucide-react"
+import { Sun, Moon, Laptop, Trash2, Mail, MessageSquare, Eye, EyeOff, CalendarIcon, ShieldQuestion } from "lucide-react"
 import Link from "next/link";
 import {
   AlertDialog,
@@ -31,7 +31,7 @@ import { useUser, useAuth, useFirestore, useDoc, useMemoFirebase } from "@/fireb
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider, PhoneMultiFactorGenerator } from "firebase/auth"
+import { updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -44,8 +44,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { SecurityQuestionDialog } from "./security-question-dialog"
-import { PhoneAuthDialog } from "./phone-auth-dialog";
+import { SecurityQuestionDialog } from "./security-question-dialog";
 
 const profileSchema = z.object({
   fullName: z.string().min(1, { message: "Full name is required." }),
@@ -198,9 +197,6 @@ export default function SettingsPage() {
   const whatsAppText = "Hello, I have a question about MemoDams.";
   const isPasswordProvider = user?.providerData.some((provider) => provider.providerId === "password");
 
-  const enrolledFactors = user ? PhoneMultiFactorGenerator.getAssertion(user.multiFactor) : [];
-  const isEnrolled = enrolledFactors.length > 0;
-
   if (!user || isLoadingProfile) return <div>Loading...</div>
 
   return (
@@ -221,7 +217,7 @@ export default function SettingsPage() {
               <CardContent className="grid gap-6">
                 <div className="flex items-center gap-4">
                   <Avatar className="h-20 w-20">
-                    <AvatarImage src={user.photoURL || `https://picsum.photos/seed/${user.uid}/80/80`} />
+                    <AvatarImage src={user.photoURL || undefined} />
                     <AvatarFallback>{user.displayName?.charAt(0) || 'U'}</AvatarFallback>
                   </Avatar>
                    <FileUploadDialog
@@ -496,18 +492,6 @@ export default function SettingsPage() {
                         }
                     />
                 </div>
-                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                    <div>
-                        <Label>Two-Factor Authentication</Label>
-                        <p className="text-xs text-muted-foreground">
-                             {isEnrolled
-                                ? `Enabled on number: ${enrolledFactors[0].phoneNumber}`
-                                : "Add an extra layer of security via SMS."
-                            }
-                        </p>
-                    </div>
-                     <PhoneAuthDialog user={user} isEnrolled={isEnrolled} />
-                </div>
             </CardContent>
         </Card>
         
@@ -609,9 +593,6 @@ export default function SettingsPage() {
           </CardFooter>
         </Card>
       </div>
-      <div id="recaptcha-container"></div>
     </>
   )
 }
-
-    
