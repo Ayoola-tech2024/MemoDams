@@ -32,7 +32,7 @@ export default function Home() {
   return (
     <div className="flex min-h-screen flex-col text-center">
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 max-w-screen-2xl items-center justify-between">
+        <div className="flex h-14 max-w-screen-2xl items-center justify-between">
           <Logo />
           <div className="flex items-center gap-2">
             <Button variant="ghost" asChild>
@@ -56,7 +56,7 @@ export default function Home() {
             <div className="h-60 bg-gradient-to-br from-primary to-purple-400 blur-3xl dark:h-96 animate-float"></div>
             <div className="h-60 bg-gradient-to-r from-accent to-cyan-400 blur-3xl dark:h-96 animate-float" style={{ animationDelay: '3s' }}></div>
           </div>
-          <div className="container relative z-10 flex flex-col items-center">
+          <div className="relative z-10 flex flex-col items-center">
             <div className="mb-8">
               <Logo showText={false} />
             </div>
@@ -84,8 +84,8 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="features" className="bg-muted/30 py-20 md:py-28 px-6">
-          <div className="container">
+        <section id="features" className="bg-muted/30 py-20 md:py-28">
+          <div>
             <div className="mx-auto mb-16 max-w-2xl text-center">
               <h2 className="text-3xl font-bold md:text-4xl">Everything You Need, All in One App</h2>
               <p className="mt-4 text-muted-foreground">
@@ -111,7 +111,7 @@ export default function Home() {
         </section>
 
          <section className="py-12 md:py-16">
-          <div className="container text-center">
+          <div className="text-center">
              <h2 className="text-3xl font-bold md:text-4xl">Ready to Secure Your Digital Life?</h2>
              <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
                 Join thousands of users who trust MemoDams to keep their notes, memories, and files safe.
@@ -129,7 +129,7 @@ export default function Home() {
       </main>
 
       <footer className="border-t">
-        <div className="container flex flex-col items-center justify-between gap-4 py-10 text-center md:h-24 md:flex-row md:py-0">
+        <div className="flex flex-col items-center justify-between gap-4 py-10 text-center md:h-24 md:flex-row md:py-0">
           <div className="flex flex-col items-center gap-4 md:flex-row md:gap-2">
             <Logo />
             <p className="text-center text-sm leading-loose text-muted-foreground md:text-left">

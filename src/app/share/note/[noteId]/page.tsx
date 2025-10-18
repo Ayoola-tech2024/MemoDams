@@ -45,7 +45,7 @@ export default async function SharedNotePage({ params }: { params: { noteId: str
     return (
         <div className="min-h-screen bg-muted/20">
              <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-                <div className="container flex h-14 max-w-5xl items-center justify-between">
+                <div className="flex h-14 items-center justify-between">
                     <Logo />
                     <Button asChild>
                       <Link href="/signup">
@@ -55,7 +55,7 @@ export default async function SharedNotePage({ params }: { params: { noteId: str
                 </div>
             </header>
 
-            <main className="container max-w-4xl py-8 md:py-12">
+            <main className="max-w-4xl mx-auto py-8 md:py-12">
                 <Card>
                     <CardHeader>
                         <CardTitle className="text-3xl md:text-4xl">{note.title}</CardTitle>
