@@ -50,8 +50,8 @@ interface Note {
     id: string;
     title: string;
     content: string;
-    createdAt: { seconds: number; nanoseconds: number };
-    updatedAt: { seconds: number; nanoseconds: number };
+    createdAt?: { seconds: number; nanoseconds: number };
+    updatedAt?: { seconds: number; nanoseconds: number };
     sharedId?: string;
 }
 
@@ -228,11 +228,11 @@ export default function NoteDetailPage() {
           <div className="flex items-center text-sm text-muted-foreground pt-2 gap-6">
             <div className="flex items-center gap-2">
                 <CalendarIcon className="h-4 w-4" />
-                <span>Created: {format(new Date(note.createdAt.seconds * 1000), "PPp")}</span>
+                <span>Created: {note.createdAt ? format(new Date(note.createdAt.seconds * 1000), "PPp") : 'No date'}</span>
             </div>
              <div className="flex items-center gap-2">
                 <CalendarIcon className="h-4 w-4" />
-                <span>Last Updated: {format(new Date(note.updatedAt.seconds * 1000), "PPp")}</span>
+                <span>Last Updated: {note.updatedAt ? format(new Date(note.updatedAt.seconds * 1000), "PPp") : 'No date'}</span>
             </div>
              {note.sharedId && (
               <div className="flex items-center gap-2 text-primary">
@@ -363,3 +363,5 @@ export default function NoteDetailPage() {
     </>
   );
 }
+
+    
