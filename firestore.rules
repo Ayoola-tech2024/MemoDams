@@ -1,128 +1,146 @@
+/**
+ * @fileoverview Firestore Security Rules for MemoDams application.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model. Each user has exclusive
+ * access to their own data, including notes, tags, and files.
+ *
+ * Data Structure:
+ * Data is organized under the `/users/{userId}` path, where `{userId}`
+ * corresponds to the Firebase Auth UID. Notes, tags, and files are stored
+ * as subcollections under each user's document. Shared notes are stored under `/sharedNotes/{noteId}`.
+ *
+ * Key Security Decisions:
+ * - Users can only access their own data.
+ * - Listing operations are restricted to the owner of the data.
+ * - The `sharedNotes` collection is publicly readable, but only writable by the server.
+ *
+ * Denormalization for Authorization:
+ * - The `userId` is embedded in the path for notes, tags, and files, which avoids
+ *   the need for `get()` calls to verify ownership. The rule checks `request.auth.uid` against the `{userId}` path parameter.
+ *
+ * Structural Segregation:
+ * - Publicly shared notes are stored in a separate `/sharedNotes` collection to
+ *   avoid mixing public and private data within the user's private data tree.
+ */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Checks if the request is made by an authenticated user.
-     * @path N/A
-     * @allow N/A
-     * @deny N/A
-     * @principle Enforces identity verification.
+     * @description Defines the `isSignedIn()` helper function.
+     * @principle Checks if the request is authenticated.
      */
     function isSignedIn() {
       return request.auth != null;
     }
 
     /**
-     * @description Checks if the request is made by the owner of the resource.
-     * @path N/A
-     * @allow N/A
-     * @deny N/A
-     * @principle Enforces identity verification.
+     * @description Defines the `isOwner(userId)` helper function.
+     * @principle Checks if the request is made by the owner of the resource.
+     * @param {string} userId - The user ID to check against the request's auth UID.
      */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
     /**
-     * @description Checks if the request is made by the owner of the resource and the resource exists.
-     * @path N/A
-     * @allow N/A
-     * @deny N/A
-     * @principle Enforces resource existence for update and delete operations.
+     * @description Defines the `isExistingOwner(userId)` helper function.
+     * @principle Checks if the request is made by the owner of an existing resource.
+     * @param {string} userId - The user ID to check against the resource data and the request's auth UID.
      */
     function isExistingOwner(userId) {
-      return isOwner(userId) && exists(resource.path);
+        return isOwner(userId) && resource != null;
     }
 
     /**
-     * @description Defines security rules for user profiles.
+     * @description Security rules for user profile documents.
      * @path /users/{userId}
-     * @allow (create) - User with UID 'user123' creates their profile with matching ID.
-     * @allow (get) - User with UID 'user123' reads their profile.
-     * @allow (update) - User with UID 'user123' updates their profile.
-     * @allow (delete) - User with UID 'user123' deletes their profile.
-     * @deny (create) - User with UID 'user456' attempts to create a profile for 'user123'.
-     * @deny (get) - User with UID 'user456' attempts to read profile 'user123'.
-     * @principle Enforces document ownership for writes and restricts access to a user's own data.
+     * @allow (create) User with UID 'user_abc' can create their profile.
+     * @allow (get) User with UID 'user_abc' can read their profile.
+     * @allow (update) User with UID 'user_abc' can update their profile.
+     * @allow (delete) User with UID 'user_abc' can delete their profile.
+     * @deny (create) User with UID 'user_xyz' cannot create a profile for 'user_abc'.
+     * @principle Enforces document ownership for all operations.
      */
     match /users/{userId} {
       allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
+      allow list: if false; // User listing is not permitted
+
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Defines security rules for notes under a specific user.
+     * @description Security rules for notes belonging to a user.
      * @path /users/{userId}/notes/{noteId}
-     * @allow (create) - User with UID 'user123' creates a note under their user ID.
-     * @allow (get) - User with UID 'user123' reads a note under their user ID.
-     * @allow (update) - User with UID 'user123' updates a note under their user ID.
-     * @allow (delete) - User with UID 'user123' deletes a note under their user ID.
-     * @deny (create) - User with UID 'user456' attempts to create a note under user ID 'user123'.
-     * @deny (get) - User with UID 'user456' attempts to read a note under user ID 'user123'.
-     * @principle Enforces document ownership for writes and restricts access to a user's own notes.
+     * @allow (create) User with UID 'user_abc' can create a note under their profile.
+     * @allow (get) User with UID 'user_abc' can read a note under their profile.
+     * @allow (update) User with UID 'user_abc' can update a note under their profile.
+     * @allow (delete) User with UID 'user_abc' can delete a note under their profile.
+     * @deny (create) User with UID 'user_xyz' cannot create a note under 'user_abc' profile.
+     * @principle Enforces document ownership for all operations.
      */
     match /users/{userId}/notes/{noteId} {
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
+
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
       allow delete: if isExistingOwner(userId);
     }
 
      /**
-      * @description Defines security rules for shared notes.
+      * @description Security rules for shared notes. Anyone can read, but only the server can write.
       * @path /sharedNotes/{noteId}
-      * @allow (get) - Any user can read a shared note.
-      * @deny (create, update, delete) - No user can create, update, or delete a shared note directly.
-      * @principle Grants public read access to shared notes while restricting write access.
+      * @allow (get) Any user can read a shared note.
+      * @deny (create, update, delete) Only the server can modify shared notes.
+      * @principle Public read, server-only write.
       */
-    match /sharedNotes/{noteId} {
-        allow get: if true;
-        allow list: if true;
-        allow create: if isSignedIn(); // TODO: Add owner validation once the schema is updated with an ownership field.
-        allow update: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-        allow delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-    }
+     match /sharedNotes/{noteId} {
+        allow get: if true; // Public read
+        allow list: if true; // Public read
+        allow create: if false; // Server-side only
+        allow update: if false; // Server-side only
+        allow delete: if false; // Server-side only
+     }
 
     /**
-     * @description Defines security rules for tags under a specific user.
+     * @description Security rules for tags belonging to a user.
      * @path /users/{userId}/tags/{tagId}
-     * @allow (create) - User with UID 'user123' creates a tag under their user ID.
-     * @allow (get) - User with UID 'user123' reads a tag under their user ID.
-     * @allow (update) - User with UID 'user123' updates a tag under their user ID.
-     * @allow (delete) - User with UID 'user123' deletes a tag under their user ID.
-     * @deny (create) - User with UID 'user456' attempts to create a tag under user ID 'user123'.
-     * @deny (get) - User with UID 'user456' attempts to read a tag under user ID 'user123'.
-     * @principle Enforces document ownership for writes and restricts access to a user's own tags.
+     * @allow (create) User with UID 'user_abc' can create a tag under their profile.
+     * @allow (get) User with UID 'user_abc' can read a tag under their profile.
+     * @allow (update) User with UID 'user_abc' can update a tag under their profile.
+     * @allow (delete) User with UID 'user_abc' can delete a tag under their profile.
+     * @deny (create) User with UID 'user_xyz' cannot create a tag under 'user_abc' profile.
+     * @principle Enforces document ownership for all operations.
      */
     match /users/{userId}/tags/{tagId} {
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
+
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Defines security rules for files under a specific user.
+     * @description Security rules for files belonging to a user.
      * @path /users/{userId}/files/{fileId}
-     * @allow (create) - User with UID 'user123' creates a file under their user ID.
-     * @allow (get) - User with UID 'user123' reads a file under their user ID.
-     * @allow (update) - User with UID 'user123' updates a file under their user ID.
-     * @allow (delete) - User with UID 'user123' deletes a file under their user ID.
-     * @deny (create) - User with UID 'user456' attempts to create a file under user ID 'user123'.
-     * @deny (get) - User with UID 'user456' attempts to read a file under user ID 'user123'.
-     * @principle Enforces document ownership for writes and restricts access to a user's own files.
+     * @allow (create) User with UID 'user_abc' can create a file under their profile.
+     * @allow (get) User with UID 'user_abc' can read a file under their profile.
+     * @allow (update) User with UID 'user_abc' can update a file under their profile.
+     * @allow (delete) User with UID 'user_abc' can delete a file under their profile.
+     * @deny (create) User with UID 'user_xyz' cannot create a file under 'user_abc' profile.
+     * @principle Enforces document ownership for all operations.
      */
     match /users/{userId}/files/{fileId} {
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
+
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
       allow delete: if isExistingOwner(userId);
     }
   }
