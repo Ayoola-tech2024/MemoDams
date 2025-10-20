@@ -14,6 +14,9 @@ export const metadata: Metadata = {
   keywords: ['cloud storage', 'note taking', 'photo storage', 'file management', 'secure notes', 'digital diary', 'firebase'],
   authors: [{ name: 'Ayoola Damisile' }],
   creator: 'Ayoola Damisile',
+  verification: {
+    google: 'uUz-hs6j9TFOcqVFjb4PONuURT4dY68ciLO-yNK6MCw',
+  },
   openGraph: {
     title: 'MemoDams - Your Digital Life, Secured',
     description: 'The all-in-one app to securely manage notes, photos, videos, and files. Your personal cloud-powered digital space.',
