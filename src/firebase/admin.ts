@@ -11,15 +11,17 @@ const serviceAccount = {
   clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
 };
 
+let adminApp: admin.App;
+
 export function initializeAdmin() {
   if (admin.apps.length > 0) {
     return admin.app();
   }
 
   try {
-    return admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
-    });
+    const credential = admin.credential.cert(serviceAccount as admin.ServiceAccount);
+    adminApp = admin.initializeApp({ credential });
+    return adminApp;
   } catch (error) {
     console.error('Firebase admin initialization error:', error);
     // If initialization fails, throw an error to prevent the app from running with a misconfiguration.

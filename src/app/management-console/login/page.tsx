@@ -73,7 +73,7 @@ export default function AdminLoginPage() {
                     <FormItem className="grid gap-2">
                       <FormLabel>Username</FormLabel>
                       <FormControl>
-                        <Input placeholder="Admin" {...field} />
+                        <Input placeholder="username" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
