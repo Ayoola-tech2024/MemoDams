@@ -21,15 +21,12 @@ import {
 } from '@/components/ui/sheet';
 import {
   BookText,
-  FileArchive,
   Home,
-  Image as ImageIcon,
   LogOut,
   Menu,
   Search,
   Settings,
   User,
-  Video,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Logo } from '@/components/logo';
@@ -45,9 +42,6 @@ import { cn } from '@/lib/utils';
 const navItems = [
   { href: '/dashboard', icon: Home, label: 'Dashboard' },
   { href: '/dashboard/notes', icon: BookText, label: 'Notes' },
-  { href: '/dashboard/photos', icon: ImageIcon, label: 'Photos' },
-  { href: '/dashboard/videos', icon: Video, label: 'Videos' },
-  { href: '/dashboard/files', icon: FileArchive, label: 'Files' },
 ];
 
 function NavLink({ href, icon: Icon, label, onClick }: { href:string; icon: React.ElementType; label: string, onClick?: () => void }) {

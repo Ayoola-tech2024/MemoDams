@@ -9,19 +9,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { BookText, FileArchive, Image as ImageIcon, Video, ArrowRight, NotebookPen, PartyPopper, MessageSquare } from "lucide-react"
+import { BookText, ArrowRight, NotebookPen, PartyPopper, MessageSquare } from "lucide-react"
 import Link from 'next/link'
 import { useCollection, useDoc, useFirestore, useUser, useMemoFirebase } from "@/firebase"
-import { collection, query, where, orderBy, getCountFromServer, doc } from "firebase/firestore"
+import { collection, query, orderBy, getCountFromServer, doc } from "firebase/firestore"
 import { useEffect, useState } from "react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { BirthdayGreeting } from "@/components/birthday-greeting"
 
 type CountState = {
   notes: number;
-  photos: number;
-  videos: number;
-  files: number;
 }
 
 function OverviewCard({ title, icon: Icon, count, isLoading }: { title: string; icon: React.ElementType; count: number; isLoading: boolean; }) {
@@ -72,7 +69,7 @@ export default function DashboardPage() {
   const { user } = useUser()
   const firestore = useFirestore()
   const [greeting, setGreeting] = useState({ text: "", emoji: "" });
-  const [counts, setCounts] = useState<CountState>({ notes: 0, photos: 0, videos: 0, files: 0 });
+  const [counts, setCounts] = useState<CountState>({ notes: 0 });
   const [isLoadingCounts, setIsLoadingCounts] = useState(true);
 
    const userProfileRef = useMemoFirebase(() => {
@@ -89,22 +86,10 @@ export default function DashboardPage() {
       setIsLoadingCounts(true);
       try {
         const notesQuery = query(collection(firestore, 'users', user.uid, 'notes'));
-        const photosQuery = query(collection(firestore, 'users', user.uid, 'files'), where("fileType", "in", ["image/jpeg", "image/png", "image/gif", "image/webp"]));
-        const videosQuery = query(collection(firestore, 'users', user.uid, 'files'), where("fileType", "in", ["video/mp4", "video/webm", "video/ogg"]));
-        const allFilesQuery = query(collection(firestore, 'users', user.uid, 'files'));
+        const notesSnap = await getCountFromServer(notesQuery);
 
-        const [notesSnap, photosSnap, videosSnap, filesSnap] = await Promise.all([
-          getCountFromServer(notesQuery),
-          getCountFromServer(photosQuery),
-          getCountFromServer(videosQuery),
-          getCountFromServer(allFilesQuery),
-        ]);
-        
         setCounts({
           notes: notesSnap.data().count,
-          photos: photosSnap.data().count,
-          videos: videosSnap.data().count,
-          files: filesSnap.data().count,
         });
 
       } catch (error) {
@@ -124,34 +109,30 @@ export default function DashboardPage() {
   }, [user, firestore]);
   const { data: recentNotes, isLoading: isLoadingNotes } = useCollection(recentNotesQuery);
 
-  const recentFilesQuery = useMemoFirebase(() => {
-    if (!user || !firestore) return null;
-    return query(collection(firestore, 'users', user.uid, 'files'), orderBy("uploadDate", "desc"));
-  }, [user, firestore]);
-  const { data: recentUploads, isLoading: isLoadingFiles } = useCollection(recentFilesQuery);
-
   const overviewItems = [
     { title: "Notes", count: counts.notes, icon: BookText, href: "/dashboard/notes", isLoading: isLoadingCounts },
-    { title: "Photos", count: counts.photos, icon: ImageIcon, href: "/dashboard/photos", isLoading: isLoadingCounts },
-    { title: "Videos", count: counts.videos, icon: Video, href: "/dashboard/videos", isLoading: isLoadingCounts },
-    { title: "Files", count: counts.files, icon: FileArchive, href: "/dashboard/files", isLoading: isLoadingCounts },
   ]
 
   const isBirthday = () => {
     if (!userProfile?.birthday) return false;
     const today = new Date();
     const birthDate = new Date(userProfile.birthday);
-    return today.getMonth() === birthDate.getMonth() && today.getDate() === birthDate.getDate();
-  };
+    return today.getUTCDate() === birthDate.getUTCDate() && today.getUTCMonth() === birthDate.getUTCMonth();
+  }
 
+  const userName = user?.displayName || userProfile?.name;
   const isBirthdayToday = isBirthday();
-  const userName = user?.displayName?.split(' ')[0];
 
   return (
-    <div className="animate-in fade-in duration-500">
-      {isBirthdayToday && <BirthdayGreeting name={userName} />}
+    <div className="space-y-6">
+      <div className="animate-in fade-in slide-in-from-top-2 duration-500">
+        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+        <p className="text-muted-foreground">Welcome back! Here's your activity overview.</p>
+      </div>
+
+      {userName && <BirthdayGreeting name={userName} />}
       {isBirthdayToday && <BirthdayBanner name={userName} />}
-      
+
       <div className="flex items-center justify-between">
         <div className="grid gap-1">
           <h1 className="text-xl font-semibold tracking-tight md:text-3xl">
@@ -170,7 +151,7 @@ export default function DashboardPage() {
         ))}
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7 mt-6">
-        <Card className="col-span-full md:col-span-4 animate-in fade-in slide-in-from-bottom-4" style={{ animationDelay: '500ms', animationFillMode: 'backwards' }}>
+        <Card className="col-span-full md:col-span-4 lg:col-span-7 animate-in fade-in slide-in-from-bottom-4" style={{ animationDelay: '500ms', animationFillMode: 'backwards' }}>
           <CardHeader>
             <CardTitle>Recent Notes</CardTitle>
             <CardDescription>
@@ -218,59 +199,24 @@ export default function DashboardPage() {
             )}
           </CardContent>
         </Card>
-        <Card className="col-span-full md:col-span-3 animate-in fade-in slide-in-from-bottom-4" style={{ animationDelay: '600ms', animationFillMode: 'backwards' }}>
-          <CardHeader>
-            <CardTitle>Recent Uploads</CardTitle>
-            <CardDescription>
-              Your latest photos, videos, and files.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoadingFiles ? (
-               <div className="space-y-4">
-                  <div className="flex items-center gap-4">
-                     <Skeleton className="h-12 w-12 rounded-md" />
-                     <div className="space-y-2">
-                       <Skeleton className="h-4 w-32" />
-                       <Skeleton className="h-4 w-24" />
-                     </div>
-                  </div>
-                   <div className="flex items-center gap-4">
-                     <Skeleton className="h-12 w-12 rounded-md" />
-                     <div className="space-y-2">
-                       <Skeleton className="h-4 w-32" />
-                       <Skeleton className="h-4 w-24" />
-                     </div>
-                  </div>
-                </div>
-            ) : recentUploads && recentUploads.length > 0 ? (
-               <div className="space-y-4">
-                {(recentUploads.slice(0, 2) || []).map(file => (
-                  <div key={file.id} className="flex items-center gap-4">
-                    <div className="rounded-md bg-secondary p-3">
-                      {file.fileType.startsWith('image/') ? <ImageIcon className="h-5 w-5 text-muted-foreground" /> : <FileArchive className="h-5 w-5 text-muted-foreground" />}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium leading-none truncate">{file.name}</p>
-                       <p className="text-sm text-muted-foreground">
-                        {file.uploadDate ? new Date(file.uploadDate.seconds * 1000).toLocaleDateString() : 'Uploaded recently'}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-               <div className="flex flex-col items-center justify-center text-center py-8">
-                  <FileArchive className="h-10 w-10 text-muted-foreground mb-3" />
-                  <h3 className="text-lg font-semibold">No recent uploads</h3>
-                  <p className="text-sm text-muted-foreground">Your latest files will appear here.</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
       </div>
+
+      <Card className="animate-in fade-in slide-in-from-bottom-4" style={{ animationDelay: '700ms', animationFillMode: 'backwards' }}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5 text-primary"/> Quick Actions</CardTitle>
+          <CardDescription>
+            Capture new ideas and continue where you left off.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex gap-3">
+          <Button asChild>
+            <Link href="/dashboard/notes">
+              Open Notes
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   )
 }
-
-    
